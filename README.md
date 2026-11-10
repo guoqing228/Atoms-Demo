@@ -41,7 +41,10 @@ pnpm build        # 生产构建（Vercel 可直接使用）
 | 导出 | 单文件 HTML / 项目 JSON |
 | 运行时控制台 | 捕获生成应用的 `console` 与未捕获错误，便于定位问题 |
 | 本地持久化 | 项目 / 会话 / 版本存 IndexedDB，刷新不丢 |
-| 设备预览 | 桌面 / 平板 / 手机三种视口 |
+| 版本时间线 | 每次生成自动快照，可回滚，可**逐行 diff 对比**当前版本 |
+| 设备预览 | 桌面 / 平板 / 手机三种视口；移动端「对话 / 预览」切换 |
+| 生成控制 | 可随时**停止**生成；失败可**重试这一步** |
+| 真实模型 | OpenAI 兼容（含百炼 kimi-k3 等推理模型）/ Anthropic，**结构化 JSON 输出** |
 
 ## 生成内核
 
@@ -66,7 +69,8 @@ prompt ──► router（关键词路由）
 - **服务端流式生成**（`POST /api/generate`，NDJSON）：模型 Key 不进浏览器代码；逐帧推送让生成过程可感知；
 - **无服务端数据库**：全部数据存浏览器 IndexedDB（Dexie）。避免登录与后端依赖，让「持久化」成为产品能力而非账号能力；
 - **单文件内联预览**：生成的应用不是部署到独立域名，而是把 3 个文件内联进 `iframe srcdoc`；配合注入的运行时桥实现控制台捕获、错误捕获和存储降级；
-- **分享 = URL 编码**：lz-string 压缩完整项目到 URL hash，别人打开链接即可运行，零后端；
+- **分享 = URL 编码**：gzip + base64url 压缩完整项目进 URL hash（比旧版 lz-string 小 ~33%，兼容旧链接），别人打开即可运行，零后端；
+- **真实模型 = 结构化 JSON**：要求模型只输出一个 `{plan, files}` JSON 对象；对推理模型做参数降级重试（temperature/response_format/max_tokens 被拒时自动退让），并推送心跳日志避免长任务看起来卡死；
 - **Mock provider 与真实 provider 同构**：都是 `AsyncGenerator<AgentEvent>`，UI 只认事件流。
 
 ## 目录结构
@@ -79,29 +83,33 @@ src/
     globals.css              # 设计令牌：paper & ink 亮色主题
   components/
     ui/                      # Button / Dialog / Tooltip / Logo 等基础件
-    workspace/               # 顶栏、侧栏、对话、预览、代码、控制台、版本、设置
+    workspace/               # 工作台组件
+      workspace.tsx          #   编排：状态 + 布局（已按职责拆出下面三个模块）
+      run-state.ts           #   纯 reducer：Agent 事件 → RunView
+      chat.tsx / preview.tsx / versions-pane.tsx / …
   lib/
     agent/
       mock.ts                # Mock Agent：路由 + 叙述 + 流式节拍 + 静态自检
-      real.ts                # OpenAI 兼容 / Anthropic 流式接入 + 标签协议解析
+      real.ts                # OpenAI 兼容 / Anthropic 流式接入（结构化 JSON 输出）
       themes.ts              # prompt → 调色板
       recipes/               # 13 个应用配方（每个都是完整可运行应用）
       synth.ts               # 通用 CRUD 合成器
     preview.ts               # 多文件内联 + 运行时桥
-    share.ts                 # 分享链接编解码
+    share.ts                 # 分享链接编解码（gzip / lz-string / legacy）
+    diff.ts                  # 版本逐行 diff
+    workspace-store.ts       # 持久化：Project/Message/Version 事务
+    workspace-io.ts          # 导出下载等浏览器 IO
     db.ts                    # Dexie schema
+    __tests__/               # Vitest 单元测试（53 个断言）
 scripts/
-  check-recipe.mjs           # 单个 recipe 的自动化验收（生成 → 语法 → 渲染 → 截图）
+  check-recipe.mjs           # recipe 自动化验收（生成 → 语法 → 渲染 → 截图）
   e2e-flows.mjs              # 端到端主流程测试
-  test-real-provider.mjs     # 用本地假 SSE 服务验证真实模型接入链路
-  qa-ui.mjs                  # 布局 / 对比度 / 移动端审计
-  shots.mjs                  # UI 截图回归（输出到 shots/）
-docs/
-  recipe-spec.md             # recipe 契约与设计规范（队友/协作者必读）
-  笔试说明.md                # 笔试提交用说明文档（实现思路 / 完成度 / 扩展优先级）
-  自检与优化清单.md          # 按评估维度的自检：亮点、工程债、剩余优先级
-  source/                    # 笔试题原始文档与导入文本
-shots/                       # 截图产物（工作台各状态 + 13 个生成应用）
+  verify-requirements.mjs    # 笔试四项需求覆盖验证
+  check-mobile.mjs           # 移动端对话/预览切换 + 溢出检查
+  test-real-provider.mjs     # 本地假 SSE 验证真实模型两条协议
+  demo-gif.mjs               # 录制演示 GIF
+  qa-ui.mjs / shots.mjs      # 布局审计 / 截图回归
+shots/                       # 截图与 demo.gif
 ```
 
 ## 部署（Vercel）
@@ -139,33 +147,36 @@ pnpm dlx vercel deploy --prod        # 首次会提示登录 / 关联项目
 ## 测试
 
 ```bash
-pnpm typecheck                         # TypeScript
-node scripts/test-real-provider.mjs    # 真实模型接入链路（本地假 SSE，无需 Key）
-node scripts/check-recipe.mjs --all    # 全部 13 个 recipe + 合成器验收（生成 → 语法 → 渲染 → 截图）
-node scripts/e2e-flows.mjs             # 端到端主流程（生成/迭代/回滚/分享/导出/刷新持久化）
-node scripts/verify-requirements.mjs   # 笔试四项需求覆盖验证（真实交互/持久化/主流程/延展）
-node scripts/shots.mjs                 # UI 截图回归（输出 shots/*.png）
-node scripts/qa-ui.mjs                 # 布局/对比度/移动端审计
+pnpm typecheck                          # TypeScript（严格模式）
+pnpm lint                               # ESLint（flat config，0 warning）
+pnpm test                               # Vitest 单元测试（53 个断言：share/format/preview/themes/diff/real 解析）
+node scripts/test-real-provider.mjs     # 真实模型接入链路（本地假 SSE，无需 Key）
+node scripts/check-recipe.mjs --all     # 全部 13 个 recipe + 合成器验收（生成 → 语法 → 渲染 → 截图）
+node scripts/e2e-flows.mjs              # 端到端主流程（生成/迭代/回滚/分享/导出/刷新持久化）
+node scripts/verify-requirements.mjs    # 笔试四项需求覆盖验证（真实交互/持久化/主流程/延展）
+node scripts/check-mobile.mjs           # 移动端对话/预览切换 + 溢出检查
+node scripts/demo-gif.mjs               # 录制演示 GIF（shots/demo.gif）
+node scripts/qa-ui.mjs / shots.mjs      # 布局审计 / 截图回归
 ```
 
-当前状态：`typecheck` ✅、`build` ✅、recipe 全量 14/14 PASS ✅、主流程 E2E 11/11 PASS ✅
-（含生成取消/重试）、**笔试四项需求覆盖 4/4 PASS** ✅、真实模型两条协议链路 PASS ✅、
-桌面与 390px 移动端零横向溢出、控制台零报错 ✅。
-
-> 完整的按维度自检与剩余优化优先级见 [`docs/自检与优化清单.md`](docs/自检与优化清单.md)。
+当前状态：`typecheck` ✅、`lint` 0 warning ✅、`build` ✅、单元测试 53/53 ✅、
+recipe 全量 14/14 PASS ✅、主流程 E2E 11/11 PASS ✅（含取消/重试）、
+**笔试四项需求覆盖 4/4 PASS** ✅、移动端切换检查 7/7 PASS ✅、真实模型协议链路 PASS ✅。
 
 ## 已知限制
 
 - **Mock 模式不是真的 LLM**：任意 prompt 会路由到最接近的 recipe 或通用合成器，语义理解有上限；
   真实模型模式（BYOK）走同一事件协议，质量由所选模型决定。
+- **推理模型较慢**：如百炼 kimi-k3 全量生成需要 1–3 分钟（会持续推送心跳日志，可随时取消）；
+  Mock 模式是秒级，适合评委直接体验。
 - **Mock 模式的多轮迭代是「整体重建」**，不是精准 diff 修改；真实模型模式下会把现有文件作为上下文做完整重写。
 - 预览 iframe 使用 `allow-same-origin allow-scripts` 以便生成应用使用 `localStorage`；生成代码来自受信任的生成器，若接入真实模型建议改为独立域名沙箱。
-- 长页面分享 URL 可能超过部分聊天工具的长度限制，此时用「导出 HTML」。
+- 分享链接经 gzip 后约 7–8KB（base64 有 ~33% 膨胀）；更长的项目建议用「导出 HTML」。
 
 ## Roadmap（继续投入的优先级）
 
-1. **真实模型质量**（P0）：默认接入一个便宜快模型，配合「生成 → 运行时错误回喂 → 自动修复」闭环；
+1. **真实模型质量**（P0）：接入便宜快模型作为可选默认，配合「生成 → 运行时错误回喂 → 自动修复」闭环；
 2. **沙箱独立域**（P0）：生成应用到独立 origin，彻底隔离；
 3. **精准增量修改**（P1）：结构化 AST 级 patch，而不是整文件重写；
-4. **部署与分享强化**（P1）：一键部署生成的静态站点到用户域名；
-5. **协作**（P2）：项目导出/导入、多人实时预览。
+4. **部署与分享强化**（P1）：一键部署生成的静态站点到用户域名；分享短链服务；
+5. **协作**（P2）：项目导入/导出、多人实时预览。

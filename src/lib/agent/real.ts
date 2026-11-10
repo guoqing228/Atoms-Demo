@@ -1,48 +1,67 @@
-import type { AgentEvent, AppPlan, FileMap, GenerateRequest } from "@/lib/types";
+import type { AgentEvent, AppPlan, FileMap, GenerateRequest, PlanFeature } from "@/lib/types";
 import type { ProviderSettings } from "./provider";
 import { pickTheme } from "./themes";
 
 /**
  * Real-model provider (bring your own key).
  *
- * The model is asked to reply in a strict tag protocol so its output can be
- * streamed into exactly the same UI the mock agent drives:
+ * Structured output: the model must reply with ONE JSON object and nothing
+ * else, which is far more robust than tag-scanning for reasoning models that
+ * like to emit prose:
  *
- *   <plan>{ "name": …, "features": [ … ] }</plan>
- *   <file path="index.html">…</file>
- *   <file path="styles.css">…</file>
- *   <file path="app.js">…</file>
+ * {
+ *   "plan": { "name", "tagline", "summary", "stack": [], "features": [{...}] },
+ *   "files": { "index.html": "...", "styles.css": "...", "app.js": "..." }
+ * }
  *
- * Supports OpenAI-compatible `/chat/completions` and Anthropic `/v1/messages`
- * streaming. The key never leaves the server: the browser sends it per
- * request from local settings, the route proxies it to the provider.
+ * Works with OpenAI-compatible endpoints (request `json_object` mode, retry
+ * without it if the server rejects the field) and Anthropic `/v1/messages`.
+ * Long generations from reasoning models get heartbeat log frames so the UI
+ * never looks frozen, and the whole run can be cancelled from the browser.
  */
 
-const SYSTEM_PROMPT = `You are an expert front-end engineer. Build a complete single-page app.
+const FILE_ORDER = ["index.html", "styles.css", "app.js"];
 
-Reply ONLY with this protocol, no markdown fences and no extra prose outside:
+const SYSTEM_PROMPT = `You are an expert front-end engineer. Build a complete, runnable single-page app.
 
-<plan>{"name":"2-4 word product name","tagline":"one sentence","summary":"one paragraph","stack":["HTML/CSS/JS","localStorage"],"features":[{"icon":"zap","title":"…","detail":"…"}]}</plan>
-<file path="index.html">complete HTML document (links styles.css, ends with <script src="app.js"></script>)</file>
-<file path="styles.css">complete CSS using CSS variables from :root</file>
-<file path="app.js">complete classic script (no modules, no imports), persists state in localStorage inside try/catch</file>
+Reply with EXACTLY ONE JSON object, no markdown fences, no prose before or after:
+
+{
+  "plan": {
+    "name": "2-4 word product name",
+    "tagline": "one sentence",
+    "summary": "one paragraph",
+    "stack": ["HTML/CSS/JS", "localStorage"],
+    "features": [{ "icon": "zap", "title": "短标题", "detail": "一句说明" }]
+  },
+  "files": {
+    "index.html": "complete HTML document; links styles.css and loads app.js at the end of body",
+    "styles.css": "complete CSS; define :root CSS variables (--bg --surface --text --muted --accent --accent2 --border --radius --font)",
+    "app.js": "complete CLASSIC script (no modules, no imports, no template literals \${...}); persist state in localStorage inside try/catch"
+  }
+}
 
 Rules:
-- Fully offline: no CDN, no external fonts or images; inline SVG only.
-- Responsive down to 375px, real interactions (add/edit/delete/filter/drag…), seed data so it never opens empty.
-- Polished visual design with a consistent palette, generous spacing, hover/focus states.
-- Chinese UI copy. No console errors. No TODOs.`;
+- Fully offline: no CDN, no external fonts or images, inline SVG icons only.
+- Responsive down to 375px; real interactions (add/edit/delete/filter/drag/sort…); 6+ seed items so it never opens empty.
+- Refined product design (Linear/Notion-like): light surfaces, one restrained accent, 1px hairline borders, 8-12px radius, generous spacing, subtle hover/focus states.
+- Chinese UI copy. No console errors, no TODOs, no console.log.
+- JSON must be valid: escape newlines inside strings as \\n, never break the outer object.`;
 
 function buildUserMessage(req: GenerateRequest): string {
   if (req.mode === "edit" && req.current) {
     const files = Object.entries(req.current.files)
       .map(([path, content]) => `--- ${path} ---\n${content}`)
       .join("\n\n");
-    return `Existing app: ${req.current.name}\n\n${files}\n\nApply this change and return the complete updated files:\n${req.prompt}`;
+    return `Existing app: ${req.current.name}\n\n${files}\n\nApply this change and return the COMPLETE updated JSON object (all files):\n${req.prompt}`;
   }
-  if (req.mode === "edit") return `Apply this change:\n${req.prompt}`;
+  if (req.mode === "edit") return `Apply this change and return the complete JSON object:\n${req.prompt}`;
   return `Build this app:\n${req.prompt}`;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Entry                                                              */
+/* ------------------------------------------------------------------ */
 
 export async function* realGenerate(
   req: GenerateRequest,
@@ -55,148 +74,209 @@ export async function* realGenerate(
 
   const started = Date.now();
   const theme = pickTheme(req.prompt);
-  const parser = new ProtocolParser();
-  const mode = settings.id === "anthropic" ? "anthropic" : "openai";
+  const model = settings.model ?? "default";
 
   yield { type: "step", id: "understand", label: "理解需求", status: "start" };
-  yield { type: "log", text: `调用 ${settings.id} · ${settings.model ?? "default"}，流式生成中…` };
+  yield { type: "log", text: `调用 ${settings.id} · ${model}，等待模型输出结构化 JSON…` };
+  yield { type: "step", id: "understand", label: "理解需求", status: "done" };
+
+  yield { type: "step", id: "code", label: "生成代码", status: "start" };
+  const chunks: string[] = [];
+  let reasoningChars = 0;
+  let lastBeat = Date.now();
+  let phase: "reasoning" | "content" = "reasoning";
 
   try {
-    const stream = mode === "anthropic" ? anthropicStream(req, settings) : openaiStream(req, settings);
-    for await (const chunk of stream) {
-      for (const event of parser.push(chunk)) yield event;
+    const stream =
+      settings.id === "anthropic" ? anthropicStream(req, settings) : openaiStream(req, settings);
+    for await (const delta of stream) {
+      if (delta.kind === "reasoning") {
+        reasoningChars += delta.text.length;
+      } else {
+        chunks.push(delta.text);
+        if (phase === "reasoning") {
+          phase = "content";
+          yield { type: "log", text: "推理完成，开始输出 JSON 代码…" };
+        }
+      }
+      if (Date.now() - lastBeat > 8000) {
+        lastBeat = Date.now();
+        const seconds = Math.round((Date.now() - started) / 1000);
+        yield {
+          type: "log",
+          text:
+            phase === "reasoning"
+              ? `模型推理中… 已思考 ${reasoningChars.toLocaleString()} 字符（${seconds}s）`
+              : `已接收 ${chunks.join("").length.toLocaleString()} 字符（${seconds}s）`,
+        };
+      }
     }
   } catch (err) {
     yield { type: "error", message: err instanceof Error ? err.message : String(err) };
     return;
   }
 
-  const plan = parser.plan ?? fallbackPlan(req.prompt);
-  if (!parser.plan) yield { type: "plan", plan, theme };
-
-  if (Object.keys(parser.files).length === 0) {
-    yield { type: "error", message: "模型没有按协议返回文件，请重试或换用其他模型" };
+  const raw = chunks.join("");
+  const parsed = parseAppJson(raw);
+  if (!parsed) {
+    yield {
+      type: "error",
+      message: `模型输出不是合法 JSON（${raw.length} 字符）：${raw.slice(0, 180).replace(/\s+/g, " ")}…`,
+    };
     return;
   }
 
+  const plan = normalizePlan(parsed.plan, req.prompt);
+  const files = normalizeFiles(parsed.files);
+  if (!files["index.html"]) {
+    yield { type: "error", message: "模型返回的文件里缺少 index.html" };
+    return;
+  }
+
+  await sleep(150);
+  yield { type: "plan", plan, theme };
+
+  const paths = [...FILE_ORDER.filter((p) => p in files), ...Object.keys(files).filter((p) => !FILE_ORDER.includes(p))];
+  for (const path of paths) {
+    yield { type: "file", path, content: files[path], action: req.mode === "edit" ? "update" : "write" };
+    yield { type: "log", text: `${path}  ·  ${files[path].split("\n").length} 行  ·  ${(files[path].length / 1024).toFixed(1)} KB` };
+    await sleep(80);
+  }
+
+  yield { type: "step", id: "code", label: "生成代码", status: "done", detail: `${paths.length} 个文件` };
+  yield { type: "step", id: "verify", label: "自检", status: "start" };
+  await sleep(200);
+  const problems = inspectApp(files);
+  yield {
+    type: "log",
+    text: problems.length
+      ? `自检提示：${problems.join("；")}`
+      : "自检通过：HTML 结构完整 · 脚本为经典脚本 · 样式与脚本均已挂载",
+  };
+  yield { type: "step", id: "verify", label: "自检", status: "done", detail: problems.length ? "有提示" : "通过" };
+
   yield {
     type: "done",
-    app: { plan, theme, entry: "index.html", files: parser.files },
+    app: { plan, theme, entry: "index.html", files },
     ms: Date.now() - started,
     provider: settings.id,
   };
 }
 
-function fallbackPlan(prompt: string): AppPlan {
-  return {
-    name: "Generated App",
-    tagline: prompt.slice(0, 40),
-    summary: prompt,
-    stack: ["HTML / CSS / JS", "localStorage"],
-    features: [{ icon: "sparkles", title: "AI 生成", detail: "由真实模型即时生成" }],
-  };
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/* ------------------------------------------------------------------ */
+/*  JSON parsing / normalisation                                       */
+/* ------------------------------------------------------------------ */
+
+interface ParsedApp {
+  plan?: unknown;
+  files?: unknown;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Protocol parser                                                    */
-/* ------------------------------------------------------------------ */
-
-export class ProtocolParser {
-  private buffer = "";
-  private mode: "text" | "plan" | "file" = "text";
-  private currentPath = "";
-  private fileBuffer = "";
-  plan: AppPlan | null = null;
-  files: FileMap = {};
-
-  push(chunk: string): AgentEvent[] {
-    this.buffer += chunk;
-    const events: AgentEvent[] = [];
-    let guard = 0;
-
-    for (;;) {
-      if (guard++ > 200) break;
-
-      if (this.mode === "text") {
-        const planIdx = this.buffer.indexOf("<plan>");
-        const fileMatch = /<file\s+path="([^"]+)">/.exec(this.buffer);
-        const candidates = [planIdx, fileMatch?.index ?? -1].filter((i) => i >= 0);
-        if (candidates.length === 0) break;
-        const idx = Math.min(...candidates);
-        const narration = this.buffer.slice(0, idx).trim();
-        if (narration) events.push({ type: "log", text: narration });
-        if (idx === planIdx) {
-          this.buffer = this.buffer.slice(idx + "<plan>".length);
-          this.mode = "plan";
-        } else if (fileMatch) {
-          this.buffer = this.buffer.slice(idx + fileMatch[0].length);
-          this.currentPath = fileMatch[1];
-          this.fileBuffer = "";
-          this.mode = "file";
-        }
-        continue;
-      }
-
-      if (this.mode === "plan") {
-        const end = this.buffer.indexOf("</plan>");
-        if (end < 0) break;
-        const raw = this.buffer.slice(0, end);
-        this.buffer = this.buffer.slice(end + "</plan>".length);
-        const plan = parsePlan(raw);
-        if (plan) {
-          this.plan = plan;
-          events.push({ type: "plan", plan, theme: pickTheme(raw) });
-        }
-        this.mode = "text";
-        continue;
-      }
-
-      // mode === "file"
-      const end = this.buffer.indexOf("</file>");
-      if (end < 0) {
-        this.fileBuffer += this.buffer;
-        this.buffer = "";
-        break;
-      }
-      this.fileBuffer += this.buffer.slice(0, end);
-      this.buffer = this.buffer.slice(end + "</file>".length);
-      this.files[this.currentPath] = this.fileBuffer;
-      events.push({
-        type: "file",
-        path: this.currentPath,
-        content: this.fileBuffer,
-        action: "write",
-      });
-      this.fileBuffer = "";
-      this.mode = "text";
+/** Extract the first balanced JSON object from model output (string-aware). */
+export function extractJsonObject(raw: string): string | null {
+  const text = raw.replace(/^```(?:json)?/i, "").replace(/```\s*$/g, "");
+  const start = text.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
     }
-
-    return events;
+    if (ch === '"') inString = true;
+    else if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
   }
+  return null;
 }
 
-function parsePlan(raw: string): AppPlan | null {
+export function parseAppJson(raw: string): ParsedApp | null {
+  const json = extractJsonObject(raw);
+  if (!json) return null;
   try {
-    const start = raw.indexOf("{");
-    const end = raw.lastIndexOf("}");
-    if (start < 0 || end <= start) return null;
-    const parsed = JSON.parse(raw.slice(start, end + 1)) as Partial<AppPlan>;
-    if (!parsed.name) return null;
-    return {
-      name: String(parsed.name),
-      tagline: String(parsed.tagline ?? ""),
-      summary: String(parsed.summary ?? ""),
-      stack: Array.isArray(parsed.stack) ? parsed.stack.map(String) : ["HTML / CSS / JS"],
-      features: Array.isArray(parsed.features) ? parsed.features : [],
-    };
+    const parsed = JSON.parse(json) as ParsedApp;
+    if (!parsed || typeof parsed !== "object") return null;
+    return parsed;
   } catch {
     return null;
   }
 }
 
+function asStringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+export function normalizePlan(raw: unknown, prompt: string): AppPlan {
+  const obj = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const name = typeof obj.name === "string" && obj.name.trim() ? obj.name.trim() : "Generated App";
+  const features: PlanFeature[] = Array.isArray(obj.features)
+    ? obj.features
+        .filter((f): f is Record<string, unknown> => Boolean(f) && typeof f === "object")
+        .slice(0, 6)
+        .map((f) => ({
+          icon: typeof f.icon === "string" ? f.icon : "sparkles",
+          title: typeof f.title === "string" ? f.title : "功能",
+          detail: typeof f.detail === "string" ? f.detail : "",
+        }))
+    : [];
+  if (features.length === 0) {
+    features.push({ icon: "sparkles", title: "AI 生成", detail: prompt.slice(0, 40) });
+  }
+  return {
+    name,
+    tagline: typeof obj.tagline === "string" ? obj.tagline : "",
+    summary: typeof obj.summary === "string" ? obj.summary : prompt,
+    stack: asStringList(obj.stack).length ? asStringList(obj.stack) : ["HTML / CSS / JS", "localStorage"],
+    features,
+  };
+}
+
+export function normalizeFiles(raw: unknown): FileMap {
+  if (!raw || typeof raw !== "object") return {};
+  const files: FileMap = {};
+  for (const [path, content] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof content === "string" && content.trim()) files[path] = content;
+  }
+  if (!files["styles.css"] && files["index.html"]) files["styles.css"] = "";
+  if (!files["app.js"] && files["index.html"]) files["app.js"] = "";
+  return files;
+}
+
+/** Cheap static checks shared with the mock agent's self-check. */
+export function inspectApp(files: FileMap): string[] {
+  const problems: string[] = [];
+  const html = files["index.html"] ?? "";
+  const js = files["app.js"] ?? "";
+  if (!html.includes("<body")) problems.push("HTML 缺少 body");
+  if (!html.includes("styles.css")) problems.push("HTML 未引用 styles.css");
+  if (!html.includes("app.js")) problems.push("HTML 未引用 app.js");
+  if (/\bimport\s+[^("]/.test(js) || /\bexport\s+(default|const|function)/.test(js)) {
+    problems.push("app.js 含模块语法（应为经典脚本）");
+  }
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval
+    new Function(js);
+  } catch {
+    problems.push("app.js 语法错误");
+  }
+  return problems;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Streaming clients                                                  */
 /* ------------------------------------------------------------------ */
+
+type Delta = { kind: "content" | "reasoning"; text: string };
 
 function trimBase(base: string | undefined, fallback: string): string {
   return (base || fallback).replace(/\/+$/, "");
@@ -205,10 +285,27 @@ function trimBase(base: string | undefined, fallback: string): string {
 async function* openaiStream(
   req: GenerateRequest,
   settings: ProviderSettings,
-): AsyncGenerator<string> {
-  const res = await fetch(
-    `${trimBase(settings.baseURL, "https://api.openai.com/v1")}/chat/completions`,
-    {
+): AsyncGenerator<Delta> {
+  const base = trimBase(settings.baseURL, "https://api.openai.com/v1");
+  const messages = [
+    { role: "system", content: SYSTEM_PROMPT },
+    { role: "user", content: buildUserMessage(req) },
+  ];
+
+  // Reasoning-model endpoints are picky: some reject `temperature`, others
+  // don't know `response_format`, others cap `max_tokens`. Try the richest
+  // request first and degrade parameter by parameter.
+  const attempts: { jsonMode: boolean; maxTokens: number }[] = [
+    { jsonMode: true, maxTokens: 32000 },
+    { jsonMode: false, maxTokens: 32000 },
+    { jsonMode: false, maxTokens: 16000 },
+    { jsonMode: false, maxTokens: 8000 },
+  ];
+
+  let res: Response | null = null;
+  let lastError = "";
+  for (const attempt of attempts) {
+    const request = fetch(`${base}/chat/completions`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -217,27 +314,46 @@ async function* openaiStream(
       body: JSON.stringify({
         model: settings.model,
         stream: true,
-        temperature: 0.6,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: buildUserMessage(req) },
-        ],
+        max_tokens: attempt.maxTokens,
+        messages,
+        ...(attempt.jsonMode ? { response_format: { type: "json_object" } } : {}),
       }),
-    },
-  );
-  if (!res.ok || !res.body) {
-    throw new Error(`模型接口返回 ${res.status}：${(await res.text()).slice(0, 240)}`);
+      signal: AbortSignal.timeout(300_000),
+    });
+    res = await request;
+    if (res.ok) break;
+    const text = await res.text();
+    lastError = `模型接口返回 ${res.status}：${text.slice(0, 240)}`;
+    const retryable =
+      (res.status === 400 || res.status === 422) &&
+      /response_format|json_object|max_tokens|temperature|unsupported|invalid_parameter|not supported/i.test(text);
+    if (!retryable) break;
   }
+
+  if (!res || !res.ok || !res.body) {
+    throw new Error(lastError || "模型接口请求失败（未获得响应）");
+  }
+
   yield* sseText(res.body, (json) => {
-    const payload = json as { choices?: { delta?: { content?: string } }[] };
-    return payload.choices?.[0]?.delta?.content ?? "";
+    const payload = json as {
+      choices?: { delta?: { content?: string; reasoning_content?: string } }[];
+    };
+    const delta = payload.choices?.[0]?.delta;
+    if (!delta) return null;
+    if (typeof delta.reasoning_content === "string" && delta.reasoning_content) {
+      return { kind: "reasoning", text: delta.reasoning_content };
+    }
+    if (typeof delta.content === "string" && delta.content) {
+      return { kind: "content", text: delta.content };
+    }
+    return null;
   });
 }
 
 async function* anthropicStream(
   req: GenerateRequest,
   settings: ProviderSettings,
-): AsyncGenerator<string> {
+): AsyncGenerator<Delta> {
   const res = await fetch(`${trimBase(settings.baseURL, "https://api.anthropic.com")}/v1/messages`, {
     method: "POST",
     headers: {
@@ -253,20 +369,22 @@ async function* anthropicStream(
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildUserMessage(req) }],
     }),
+    signal: AbortSignal.timeout(300_000),
   });
   if (!res.ok || !res.body) {
     throw new Error(`Anthropic 接口返回 ${res.status}：${(await res.text()).slice(0, 240)}`);
   }
   yield* sseText(res.body, (json) => {
     const payload = json as { type?: string; delta?: { type?: string; text?: string } };
-    return payload.type === "content_block_delta" ? (payload.delta?.text ?? "") : "";
+    const text = payload.type === "content_block_delta" ? payload.delta?.text : undefined;
+    return text ? { kind: "content" as const, text } : null;
   });
 }
 
 async function* sseText(
   body: ReadableStream<Uint8Array>,
-  extract: (json: unknown) => string,
-): AsyncGenerator<string> {
+  extract: (json: unknown) => Delta | null,
+): AsyncGenerator<Delta> {
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -282,8 +400,8 @@ async function* sseText(
         const payload = line.slice(5).trim();
         if (payload === "[DONE]") return;
         try {
-          const text = extract(JSON.parse(payload));
-          if (text) yield text;
+          const delta = extract(JSON.parse(payload));
+          if (delta?.text) yield delta;
         } catch {
           /* skip malformed frame */
         }

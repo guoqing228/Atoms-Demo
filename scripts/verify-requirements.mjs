@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 需求覆盖验证（对照笔试要求）：
  *   1) 具备真实交互（而非纯静态展示）
  *   2) 具备数据持久化（不限技术方案）
@@ -22,7 +22,6 @@ page.on("console", (m) => {
   if (m.type() === "error") pageErrors.push(`console.error: ${m.text()}`);
 });
 
-const rows = [];
 function requirement(id, title) {
   const evidence = [];
   return {

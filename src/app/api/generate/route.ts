@@ -5,6 +5,9 @@ import { realGenerate } from "@/lib/agent/real";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+// real models (especially reasoning models) can take minutes; Vercel allows up
+// to 300s on Hobby/Pro for streaming functions.
+export const maxDuration = 300;
 
 const encoder = new TextEncoder();
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import * as React from "react";
 import { toast, Toaster } from "sonner";
@@ -7,6 +7,10 @@ import { streamGeneration } from "@/lib/agent-client";
 import { getDB } from "@/lib/db";
 import { buildStandaloneHtml } from "@/lib/preview";
 import { decodeProject, encodeProject, shareUrl } from "@/lib/share";
+import { emptyRun, reduceRunEvent } from "./run-state";
+import { deleteProjectData, persistGeneration, restoreVersionData, uid } from "@/lib/workspace-store";
+import { downloadFile, safeFileName } from "@/lib/workspace-io";
+import { cn } from "@/lib/utils";
 import { TopBar, type RunStatus } from "./top-bar";
 import { Rail } from "./rail";
 import { Hero } from "./hero";
@@ -18,38 +22,6 @@ import type { PreviewTab, RunView } from "./types";
 
 const SETTINGS_KEY = "vibeforge:llm";
 
-function uid(): string {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `id-${Math.random().toString(36).slice(2)}-${Date.now()}`;
-}
-
-function emptyRun(prompt: string): RunView {
-  return {
-    status: "running",
-    prompt,
-    steps: [],
-    logs: [],
-    plan: null,
-    theme: null,
-    files: {},
-    writing: null,
-  };
-}
-
-function download(filename: string, content: string, type = "text/plain") {
-  const blob = new Blob([content], { type: `${type};charset=utf-8` });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-function safeName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]+/g, "-").trim() || "app";
-}
-
 export function Workspace() {
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -59,6 +31,8 @@ export function Workspace() {
   const [busy, setBusy] = React.useState(false);
   const [consoleEntries, setConsoleEntries] = React.useState<ConsoleEntry[]>([]);
   const [draft, setDraft] = React.useState("");
+  // mobile only: chat and preview are stacked, this decides which one is visible
+  const [mobilePane, setMobilePane] = React.useState<"chat" | "preview">("chat");
   const [tab, setTab] = React.useState<PreviewTab>("preview");
   const [llm, setLlm] = React.useState<LLMSettings>(DEFAULT_LLM);
   const [shareOpen, setShareOpen] = React.useState(false);
@@ -66,6 +40,7 @@ export function Workspace() {
   const [aboutOpen, setAboutOpen] = React.useState(false);
   const [shareEncoded, setShareEncoded] = React.useState("");
   const [shareBytes, setShareBytes] = React.useState(0);
+  const [shareRawBytes, setShareRawBytes] = React.useState(0);
   const [booted, setBooted] = React.useState(false);
   const bootRef = React.useRef(false);
   const abortRef = React.useRef<AbortController | null>(null);
@@ -83,6 +58,14 @@ export function Workspace() {
   const plan = run?.plan ?? activeProject?.plan ?? null;
   const theme = run?.theme ?? activeProject?.theme ?? null;
   const inWorkspace = Boolean(activeId || run);
+
+  // mobile: once a build finishes, reveal the preview automatically
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (run?.status === "done" && window.matchMedia("(max-width: 767px)").matches) {
+      setMobilePane("preview");
+    }
+  }, [run?.status]);
 
   const refreshProjects = React.useCallback(async () => {
     try {
@@ -112,7 +95,7 @@ export function Workspace() {
       const hash = window.location.hash;
       const match = /share=([^&]+)/.exec(hash);
       if (match) {
-        const payload = decodeProject(match[1]);
+        const payload = await decodeProject(match[1]);
         if (payload) {
           const imported: Project = {
             id: uid(),
@@ -155,148 +138,35 @@ export function Workspace() {
   /*  Generation                                                       */
   /* ---------------------------------------------------------------- */
   const applyEvent = React.useCallback((event: AgentEvent) => {
-    setRun((prev) => {
-      if (!prev) return prev;
-      switch (event.type) {
-        case "log":
-          return { ...prev, logs: [...prev.logs, { id: uid(), text: event.text }] };
-        case "step": {
-          const existing = prev.steps.find((s) => s.id === event.id);
-          const steps = existing
-            ? prev.steps.map((s) =>
-                s.id === event.id ? { ...s, status: event.status, detail: event.detail ?? s.detail } : s,
-              )
-            : [...prev.steps, { id: event.id, label: event.label, status: event.status, detail: event.detail }];
-          const writing = event.status === "start" && event.id === "code" ? prev.writing : prev.writing;
-          return { ...prev, steps, writing };
-        }
-        case "plan":
-          return { ...prev, plan: event.plan, theme: event.theme };
-        case "file":
-          return {
-            ...prev,
-            files: { ...prev.files, [event.path]: event.content },
-            writing: event.path,
-          };
-        case "done":
-          return {
-            ...prev,
-            status: "done",
-            files: event.app.files,
-            plan: event.app.plan,
-            theme: event.app.theme,
-            ms: event.ms,
-            writing: null,
-          };
-        case "error":
-          return { ...prev, status: "error", error: event.message, writing: null };
-        default:
-          return prev;
-      }
-    });
+    setRun((prev) => reduceRunEvent(prev, event));
   }, []);
 
   const persistResult = React.useCallback(
-    async (app: Project["files"], event: Extract<AgentEvent, { type: "done" }>, prompt: string, mode: "create" | "edit") => {
-      const db = getDB();
-      const now = Date.now();
-      const planData = event.app.plan;
-
-      const agentMessage: ChatMessage = {
-        id: uid(),
-        projectId: activeId ?? "pending",
-        role: "agent",
-        kind: "app",
-        content: planData.summary,
-        meta: {
-          plan: planData,
-          theme: event.app.theme,
-          ms: event.ms,
-          provider: event.provider,
-          files: Object.entries(app).map(([path, content]) => ({
-            path,
-            bytes: new TextEncoder().encode(content).length,
-            action: mode === "edit" ? "update" : "write",
-          })),
-        },
-        createdAt: now,
-      };
-
-      const userMessage: ChatMessage = {
-        id: uid(),
-        projectId: activeId ?? "pending",
-        role: "user",
-        kind: "text",
-        content: prompt,
-        createdAt: now - 1,
-      };
-
-      if (mode === "create" || !activeProject) {
-        const project: Project = {
-          id: uid(),
-          name: planData.name,
-          tagline: planData.tagline,
-          prompt: prompt,
-          plan: planData,
-          theme: event.app.theme,
-          entry: event.app.entry,
-          files: app,
-          provider: event.provider,
-          createdAt: now,
-          updatedAt: now,
-        };
-        agentMessage.projectId = project.id;
-        userMessage.projectId = project.id;
-        const version: Version = {
-          id: uid(),
-          projectId: project.id,
-          label: `v1 · ${planData.name}`,
-          prompt,
-          files: app,
-          plan: planData,
-          theme: event.app.theme,
-          entry: event.app.entry,
-          createdAt: now,
-        };
-        await db.projects.put(project);
-        await db.messages.bulkPut([userMessage, agentMessage]);
-        await db.versions.put(version);
-        setProjects((prev) => [project, ...prev.filter((p) => p.id !== project.id)]);
-        setActiveId(project.id);
-        setMessages([userMessage, agentMessage]);
-        setVersions([version]);
-        return;
-      }
-
-      const project: Project = {
-        ...activeProject,
-        name: planData.name || activeProject.name,
-        tagline: planData.tagline,
-        plan: planData,
-        theme: event.app.theme,
-        entry: event.app.entry,
-        files: app,
-        updatedAt: now,
-      };
-      const version: Version = {
-        id: uid(),
-        projectId: project.id,
-        label: `v${versions.length + 1} · ${planData.name}`,
+    async (
+      app: Project["files"],
+      event: Extract<AgentEvent, { type: "done" }>,
+      prompt: string,
+      mode: "create" | "edit",
+    ) => {
+      const result = await persistGeneration({
+        mode,
         prompt,
-        files: app,
-        plan: planData,
-        theme: event.app.theme,
-        entry: event.app.entry,
-        createdAt: now,
-      };
-      await db.projects.put(project);
-      await db.messages.bulkPut([userMessage, agentMessage]);
-      await db.versions.put(version);
-      setProjects((prev) => [project, ...prev.filter((p) => p.id !== project.id)]);
-      setMessages((prev) => [...prev, userMessage, agentMessage]);
-      setVersions((prev) => [version, ...prev]);
+        app: { plan: event.app.plan, theme: event.app.theme, entry: event.app.entry, files: app },
+        done: event,
+        activeProject,
+        versionNumber: mode === "create" || !activeProject ? 1 : versions.length + 1,
+      });
+      setProjects((prev) => [result.project, ...prev.filter((p) => p.id !== result.project.id)]);
+      if (mode === "create" || !activeProject) {
+        setActiveId(result.project.id);
+        setMessages([result.userMessage, result.agentMessage]);
+        setVersions([result.version]);
+      } else {
+        setMessages((prev) => [...prev, result.userMessage, result.agentMessage]);
+        setVersions((prev) => [result.version, ...prev]);
+      }
     },
-    [activeId, activeProject, versions.length],
+    [activeProject, versions.length],
   );
 
   const generate = React.useCallback(
@@ -434,10 +304,7 @@ export function Workspace() {
   const deleteProject = React.useCallback(
     async (project: Project) => {
       if (!window.confirm(`删除「${project.name}」？该操作不可撤销。`)) return;
-      const db = getDB();
-      await db.projects.delete(project.id);
-      await db.messages.where("projectId").equals(project.id).delete();
-      await db.versions.where("projectId").equals(project.id).delete();
+      await deleteProjectData(project.id);
       setProjects((prev) => prev.filter((p) => p.id !== project.id));
       if (activeId === project.id) newApp();
       toast.success("项目已删除");
@@ -448,28 +315,10 @@ export function Workspace() {
   const restoreVersion = React.useCallback(
     async (version: Version) => {
       if (!activeProject) return;
-      const db = getDB();
-      const project: Project = {
-        ...activeProject,
-        files: version.files,
-        plan: version.plan,
-        theme: version.theme,
-        entry: version.entry,
-        updatedAt: Date.now(),
-      };
-      await db.projects.put(project);
-      setProjects((prev) => [project, ...prev.filter((p) => p.id !== project.id)]);
+      const result = await restoreVersionData(activeProject, version);
+      setProjects((prev) => [result.project, ...prev.filter((p) => p.id !== result.project.id)]);
       setRun(null);
-      const notice: ChatMessage = {
-        id: uid(),
-        projectId: project.id,
-        role: "agent",
-        kind: "notice",
-        content: `已回滚到版本「${version.label}」，当前预览为该版本的内容。`,
-        createdAt: Date.now(),
-      };
-      await db.messages.put(notice);
-      setMessages((prev) => [...prev, notice]);
+      setMessages((prev) => [...prev, result.notice]);
       toast.success("已回滚版本", { description: version.label });
     },
     [activeProject],
@@ -481,7 +330,7 @@ export function Workspace() {
   const exportHtml = React.useCallback(() => {
     if (!files["index.html"]) return;
     const title = plan?.name || "app";
-    download(`${safeName(title)}.html`, buildStandaloneHtml(files, "index.html"), "text/html");
+    downloadFile(`${safeFileName(title)}.html`, buildStandaloneHtml(files, "index.html"), "text/html");
     toast.success("已下载单文件 HTML");
   }, [files, plan]);
 
@@ -495,7 +344,7 @@ export function Workspace() {
       entry: activeProject?.entry ?? "index.html",
       files,
     };
-    download(`${safeName(plan?.name || "app")}.json`, JSON.stringify(payload, null, 2), "application/json");
+    downloadFile(`${safeFileName(plan?.name || "app")}.json`, JSON.stringify(payload, null, 2), "application/json");
     toast.success("已导出项目 JSON");
   }, [plan, theme, files, activeProject, run]);
 
@@ -512,7 +361,7 @@ export function Workspace() {
     win.document.close();
   }, [files]);
 
-  const openShare = React.useCallback(() => {
+  const openShare = React.useCallback(async () => {
     if (!files["index.html"]) {
       toast.error("先生成一个应用");
       return;
@@ -531,9 +380,11 @@ export function Workspace() {
       toast.error("应用数据不完整，无法分享");
       return;
     }
-    const encoded = encodeProject(payload);
+    const rawJson = JSON.stringify(payload);
+    const encoded = await encodeProject(payload);
     setShareEncoded(encoded);
     setShareBytes(encoded.length);
+    setShareRawBytes(rawJson.length);
     setShareOpen(true);
   }, [files, plan, theme, activeProject, run]);
 
@@ -647,39 +498,72 @@ export function Workspace() {
             />
           ) : (
             <>
-              <Chat
-                projectName={plan?.name ?? activeProject?.name ?? null}
-                messages={messages}
-                run={run && (run.status === "running" || run.status === "error") ? run : null}
-                running={busy}
-                draft={draft}
-                onDraftChange={setDraft}
-                onSend={() => void generate(draft, activeProject ? "edit" : "create")}
-                onFollowUp={(text) => void generate(text, "edit")}
-                onShare={openShare}
-                onExport={exportHtml}
-                onStop={stopGeneration}
-                onRetry={retryGeneration}
-              />
-              <PreviewPanel
-                tab={tab}
-                onTabChange={setTab}
-                files={files}
-                title={plan?.name ?? "app"}
-                theme={theme}
-                hasProject={Boolean(activeProject)}
-                running={busy}
-                run={run}
-                versions={versions}
-                onRestoreVersion={restoreVersion}
-                consoleEntries={consoleEntries}
-                onClearConsole={() => setConsoleEntries([])}
-                onShare={openShare}
-                onExportHtml={exportHtml}
-                onExportJson={exportJson}
-                onOpenStandalone={openStandalone}
-                onSignal={onPreviewSignal}
-              />
+              {/* mobile: switch between conversation and live preview */}
+              <div className="flex shrink-0 items-center gap-1 border-b border-line bg-panel px-2 py-1.5 md:hidden">
+                {(["chat", "preview"] as const).map((pane) => (
+                  <button
+                    key={pane}
+                    onClick={() => setMobilePane(pane)}
+                    className={cn(
+                      "flex-1 rounded-md px-3 py-1.5 text-[12.5px] transition-colors",
+                      mobilePane === pane
+                        ? "bg-ink/[0.06] text-ink"
+                        : "text-faint hover:text-dim",
+                    )}
+                  >
+                    {pane === "chat" ? "对话" : "预览"}
+                  </button>
+                ))}
+              </div>
+
+              <div
+                className={cn(
+                  "min-h-0 min-w-0 flex-col md:flex md:w-[420px] md:shrink-0",
+                  mobilePane === "chat" ? "flex flex-1" : "hidden",
+                )}
+              >
+                <Chat
+                  projectName={plan?.name ?? activeProject?.name ?? null}
+                  messages={messages}
+                  run={run && (run.status === "running" || run.status === "error") ? run : null}
+                  running={busy}
+                  draft={draft}
+                  onDraftChange={setDraft}
+                  onSend={() => void generate(draft, activeProject ? "edit" : "create")}
+                  onFollowUp={(text) => void generate(text, "edit")}
+                  onShare={openShare}
+                  onExport={exportHtml}
+                  onStop={stopGeneration}
+                  onRetry={retryGeneration}
+                />
+              </div>
+
+              <div
+                className={cn(
+                  "min-h-0 min-w-0 flex-col md:flex md:flex-1",
+                  mobilePane === "preview" ? "flex flex-1" : "hidden",
+                )}
+              >
+                <PreviewPanel
+                  tab={tab}
+                  onTabChange={setTab}
+                  files={files}
+                  title={plan?.name ?? "app"}
+                  theme={theme}
+                  hasProject={Boolean(activeProject)}
+                  running={busy}
+                  run={run}
+                  versions={versions}
+                  onRestoreVersion={restoreVersion}
+                  consoleEntries={consoleEntries}
+                  onClearConsole={() => setConsoleEntries([])}
+                  onShare={openShare}
+                  onExportHtml={exportHtml}
+                  onExportJson={exportJson}
+                  onOpenStandalone={openStandalone}
+                  onSignal={onPreviewSignal}
+                />
+              </div>
             </>
           )}
         </main>
@@ -690,6 +574,7 @@ export function Workspace() {
         onOpenChange={setShareOpen}
         url={shareEncoded ? shareUrl(shareEncoded) : ""}
         payloadBytes={shareBytes}
+        rawBytes={shareRawBytes}
       />
       <SettingsDialog
         open={settingsOpen}

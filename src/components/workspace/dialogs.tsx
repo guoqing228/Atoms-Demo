@@ -16,11 +16,15 @@ export function ShareDialog({
   onOpenChange,
   url,
   payloadBytes,
+  rawBytes,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   url: string;
+  /** encoded link payload size (gzip + base64url) */
   payloadBytes: number;
+  /** uncompressed project JSON size, for the compression ratio hint */
+  rawBytes?: number;
 }) {
   const [copied, setCopied] = React.useState(false);
 
@@ -51,7 +55,12 @@ export function ShareDialog({
           </div>
           <div className="grid grid-cols-3 gap-2">
             {[
-              { k: "编码体积", v: `${(payloadBytes / 1024).toFixed(1)} KB` },
+              {
+                k: "链接体积",
+                v: rawBytes
+                  ? `${(payloadBytes / 1024).toFixed(1)} KB · gzip -${Math.max(0, Math.round((1 - payloadBytes / rawBytes) * 100))}%`
+                  : `${(payloadBytes / 1024).toFixed(1)} KB · gzip`,
+              },
               { k: "渲染方式", v: "浏览器本地" },
               { k: "有效期", v: "永久" },
             ].map((item) => (
@@ -64,7 +73,10 @@ export function ShareDialog({
             ))}
           </div>
           <p className="text-[12px] leading-relaxed text-faint/70">
-            提示：分享链接会随项目一起保存本地改动；如果链接过长，可改用「下载 HTML」发送文件。
+            {rawBytes
+              ? `完整项目 ${(rawBytes / 1024).toFixed(1)} KB，gzip 压缩后编码进 URL。`
+              : ""}
+            链接会随项目一起保存本地改动；如果链接过长，可改用「下载 HTML」发送文件。
           </p>
         </div>
       </DialogContent>
@@ -92,8 +104,40 @@ export const DEFAULT_LLM: LLMSettings = {
 
 const PROVIDERS: { id: LLMSettings["provider"]; label: string; hint: string }[] = [
   { id: "mock", label: "Mock Agent", hint: "内置确定性生成器，无需 Key，秒级返回" },
-  { id: "openai", label: "OpenAI 兼容", hint: "任意兼容 /chat/completions 的服务（OpenAI、DeepSeek、硅基流动…）" },
+  { id: "openai", label: "OpenAI 兼容", hint: "任意兼容 /chat/completions 的服务（OpenAI、DeepSeek、百炼、硅基流动…）" },
   { id: "anthropic", label: "Anthropic", hint: "Claude 系列，走 /v1/messages 流式接口" },
+];
+
+const PRESETS: {
+  label: string;
+  provider: LLMSettings["provider"];
+  baseURL: string;
+  model: string;
+}[] = [
+  {
+    label: "百炼 · kimi-k3",
+    provider: "openai",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: "kimi-k3",
+  },
+  {
+    label: "DeepSeek",
+    provider: "openai",
+    baseURL: "https://api.deepseek.com/v1",
+    model: "deepseek-chat",
+  },
+  {
+    label: "OpenAI",
+    provider: "openai",
+    baseURL: "https://api.openai.com/v1",
+    model: "gpt-4o-mini",
+  },
+  {
+    label: "Claude",
+    provider: "anthropic",
+    baseURL: "https://api.anthropic.com",
+    model: "claude-sonnet-4-5",
+  },
 ];
 
 export function SettingsDialog({
@@ -119,6 +163,30 @@ export function SettingsDialog({
         description="默认使用内置 Mock Agent，生成的代码完全离线；也可以接入你自己的模型 Key（只保存在本地浏览器）。"
       >
         <div className="space-y-4 px-5 py-4">
+          <div>
+            <p className="mb-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint">
+              快速填充
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  onClick={() =>
+                    setDraft({
+                      ...draft,
+                      provider: preset.provider,
+                      baseURL: preset.baseURL,
+                      model: preset.model,
+                    })
+                  }
+                  className="rounded-full border border-white/[0.1] bg-white/[0.03] px-2.5 py-1 text-[11px] text-dim transition-colors hover:border-lime/35 hover:bg-lime/[0.06] hover:text-ink"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             {PROVIDERS.map((provider) => {
               const active = draft.provider === provider.id;

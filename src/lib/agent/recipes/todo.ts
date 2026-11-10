@@ -1,5 +1,4 @@
-import type { Recipe, RecipeContext, RecipeOutput } from "./_kit";
-import { planOf } from "./_kit";
+﻿import type { Recipe, RecipeContext, RecipeOutput } from "./_kit";
 
 /**
  * Reference recipe — the canonical quality bar for the mock generator.

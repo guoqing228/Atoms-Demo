@@ -1,4 +1,4 @@
-/**
+﻿/**
  * End-to-end flows against the running app:
  *  create → iterate → version restore → share link → export → reload persistence
  *
@@ -23,7 +23,6 @@ function check(name, ok, detail = "") {
 }
 
 const frame = () => page.frameLocator("iframe[title='应用预览']");
-const buildCount = async () => page.getByText("已构建").count();
 async function waitForBuilds(n) {
   await page.waitForFunction(
     (expected) => document.body.innerText.split("已构建").length - 1 >= expected,

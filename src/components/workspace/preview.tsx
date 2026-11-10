@@ -247,7 +247,7 @@ export function PreviewPanel({
         ) : null}
 
         {tab === "versions" ? (
-          <VersionsPane versions={versions} onRestore={onRestoreVersion} />
+          <VersionsPane versions={versions} currentFiles={files} onRestore={onRestoreVersion} />
         ) : null}
       </div>
     </section>
