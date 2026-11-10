@@ -68,6 +68,7 @@ export function Workspace() {
   const [shareBytes, setShareBytes] = React.useState(0);
   const [booted, setBooted] = React.useState(false);
   const bootRef = React.useRef(false);
+  const abortRef = React.useRef<AbortController | null>(null);
 
   const activeProject = React.useMemo(
     () => projects.find((p) => p.id === activeId) ?? null,
@@ -332,6 +333,8 @@ export function Workspace() {
 
       try {
         let finished = false;
+        const controller = new AbortController();
+        abortRef.current = controller;
         await streamGeneration(
           {
             prompt: trimmed,
@@ -360,20 +363,40 @@ export function Workspace() {
             }
             applyEvent(event);
           },
+          controller.signal,
         );
         if (!finished) {
           // the stream closed without a terminal frame
           setRun((prev) => (prev ? { ...prev, status: "error", error: "生成意外中断" } : prev));
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        setRun((prev) => (prev ? { ...prev, status: "error", error: message } : prev));
-        toast.error("生成失败", { description: message });
+        const aborted = abortRef.current?.signal.aborted ?? false;
+        if (aborted) {
+          setRun((prev) => (prev ? { ...prev, status: "error", error: "已取消生成" } : prev));
+          toast.message("已停止生成");
+        } else {
+          const message = err instanceof Error ? err.message : String(err);
+          setRun((prev) => (prev ? { ...prev, status: "error", error: message } : prev));
+          toast.error("生成失败", { description: message });
+        }
       } finally {
+        abortRef.current = null;
         setBusy(false);
       }
     },
     [busy, activeProject, messages, llm, applyEvent, persistResult],
+  );
+
+  const stopGeneration = React.useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const retryGeneration = React.useCallback(
+    (prompt: string) => {
+      if (!prompt.trim()) return;
+      void generate(prompt, activeProject ? "edit" : "create");
+    },
+    [generate, activeProject],
   );
 
   /* ---------------------------------------------------------------- */
@@ -582,7 +605,7 @@ export function Workspace() {
   if (!booted) {
     return (
       <div className="grid h-dvh place-items-center bg-bg">
-        <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-faint">
+        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
           <span className="size-1.5 animate-pulse rounded-full bg-lime" />
           loading workspace
         </div>
@@ -617,7 +640,11 @@ export function Workspace() {
 
         <main className="flex min-h-0 min-w-0 flex-1 flex-col md:flex-row">
           {!inWorkspace ? (
-            <Hero onSubmit={(prompt) => void generate(prompt, "create")} running={busy} />
+            <Hero
+              onSubmit={(prompt) => void generate(prompt, "create")}
+              onStop={stopGeneration}
+              running={busy}
+            />
           ) : (
             <>
               <Chat
@@ -631,6 +658,8 @@ export function Workspace() {
                 onFollowUp={(text) => void generate(text, "edit")}
                 onShare={openShare}
                 onExport={exportHtml}
+                onStop={stopGeneration}
+                onRetry={retryGeneration}
               />
               <PreviewPanel
                 tab={tab}

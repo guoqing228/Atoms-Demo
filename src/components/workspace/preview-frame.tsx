@@ -85,7 +85,7 @@ export function PreviewFrame({
         </div>
         <div className="mx-auto flex h-5.5 w-[min(420px,60%)] items-center gap-1.5 rounded-full border border-line bg-ink/[0.035] px-2.5">
           <Lock size={8} className="text-ok/80" />
-          <span className="truncate font-mono text-[9.5px] text-faint">
+          <span className="truncate font-mono text-[10.5px] text-faint">
             {slug}.vibeforge.app
           </span>
           {!ready ? (
@@ -93,7 +93,7 @@ export function PreviewFrame({
               <span className="block h-full w-1/2 animate-pulse bg-lime/60" />
             </span>
           ) : (
-            <span className="ml-auto font-mono text-[8.5px] uppercase tracking-[0.1em] text-ok/60">
+            <span className="ml-auto font-mono text-[10.5px] uppercase tracking-[0.1em] text-ok/60">
               live
             </span>
           )}

@@ -72,10 +72,10 @@ export function CodePane({
     <div className="flex min-h-0 flex-1 overflow-hidden rounded-xl border border-line bg-code text-[#ded6c6]">
       <div className="flex w-[168px] shrink-0 flex-col border-r border-white/10">
         <div className="flex h-8 shrink-0 items-center justify-between border-b border-white/10 px-2.5">
-          <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-[#8b8272]">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-[#8b8272]">
             files
           </span>
-          <span className="font-mono text-[9px] text-[#7c7466]">{paths.length}</span>
+          <span className="font-mono text-[10.5px] text-[#7c7466]">{paths.length}</span>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-1">
           {paths.map((path) => {
@@ -96,7 +96,7 @@ export function CodePane({
                 />
                 <span
                   className={cn(
-                    "truncate font-mono text-[10.5px]",
+                    "truncate font-mono text-[11.5px]",
                     active ? "text-[#f2ebdb]" : "text-[#a79d8b]",
                   )}
                 >
@@ -106,17 +106,17 @@ export function CodePane({
             );
           })}
         </div>
-        <div className="shrink-0 border-t border-white/10 px-2.5 py-2 font-mono text-[9px] text-[#7c7466]">
+        <div className="shrink-0 border-t border-white/10 px-2.5 py-2 font-mono text-[10.5px] text-[#7c7466]">
           {lineCount(content)} 行 · {bytes(new TextEncoder().encode(content).length)}
         </div>
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-8 shrink-0 items-center justify-between border-b border-white/10 px-3">
-          <span className="truncate font-mono text-[10.5px] text-[#c9c0ae]">{activePath}</span>
+          <span className="truncate font-mono text-[11.5px] text-[#c9c0ae]">{activePath}</span>
           <button
             onClick={copy}
-            className="flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[9.5px] text-[#a79d8b] transition-colors hover:bg-white/[0.07] hover:text-[#f2ebdb]"
+            className="flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[10.5px] text-[#a79d8b] transition-colors hover:bg-white/[0.07] hover:text-[#f2ebdb]"
           >
             {copied ? <Check size={10} className="text-ok" /> : <Copy size={10} />}
             {copied ? "已复制" : "复制"}
@@ -128,7 +128,7 @@ export function CodePane({
               <pre className="code-pre min-w-max px-3 py-2.5">
                 {tokens.map((line, i) => (
                   <div key={i} {...getLineProps({ line })} className="flex">
-                    <span className="w-8 shrink-0 select-none pr-3 text-right text-[10px] leading-[1.65] text-faint/40">
+                    <span className="w-8 shrink-0 select-none pr-3 text-right text-[11px] leading-[1.65] text-faint/40">
                       {i + 1}
                     </span>
                     <span className="whitespace-pre">

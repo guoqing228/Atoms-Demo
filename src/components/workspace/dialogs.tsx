@@ -43,7 +43,7 @@ export function ShareDialog({
         <div className="space-y-4 px-5 py-4">
           <div className="flex items-center gap-2 rounded-lg border border-line bg-ink/[0.035] px-3 py-2.5">
             <Link2 size={13} className="shrink-0 text-lime/70" />
-            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-dim">{url}</span>
+            <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-dim">{url}</span>
             <Button size="sm" variant={copied ? "soft" : "primary"} onClick={copy}>
               {copied ? <Check size={11} /> : <Copy size={11} />}
               {copied ? "已复制" : "复制链接"}
@@ -56,14 +56,14 @@ export function ShareDialog({
               { k: "有效期", v: "永久" },
             ].map((item) => (
               <div key={item.k} className="rounded-lg border border-line bg-ink/[0.02] px-2.5 py-2">
-                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint/60">
+                <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint/60">
                   {item.k}
                 </p>
-                <p className="mt-0.5 text-[12px] text-dim">{item.v}</p>
+                <p className="mt-0.5 text-[13px] text-dim">{item.v}</p>
               </div>
             ))}
           </div>
-          <p className="text-[11px] leading-relaxed text-faint/70">
+          <p className="text-[12px] leading-relaxed text-faint/70">
             提示：分享链接会随项目一起保存本地改动；如果链接过长，可改用「下载 HTML」发送文件。
           </p>
         </div>
@@ -142,8 +142,8 @@ export function SettingsDialog({
                     {active ? <Check size={8} className="text-white" /> : null}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[12.5px] text-ink">{provider.label}</span>
-                    <span className="mt-0.5 block text-[10.5px] leading-snug text-faint">
+                    <span className="block text-[13.5px] text-ink">{provider.label}</span>
+                    <span className="mt-0.5 block text-[11.5px] leading-snug text-faint">
                       {provider.hint}
                     </span>
                   </span>
@@ -177,14 +177,14 @@ export function SettingsDialog({
                 value={draft.model}
                 onChange={(v) => setDraft({ ...draft, model: v })}
               />
-              <p className="text-[10.5px] leading-relaxed text-faint/70">
+              <p className="text-[11.5px] leading-relaxed text-faint/70">
                 Key 仅保存在本机 localStorage，并随生成请求发给服务端代理；不会写入分享链接或版本记录。
               </p>
             </div>
           ) : null}
 
           <div className="flex items-center justify-between border-t border-line pt-3">
-            <p className="text-[10.5px] text-faint/60">
+            <p className="text-[11.5px] text-faint/60">
               <Kbd>⌘K</Kbd> 新建 · <Kbd>⌘↵</Kbd> 发送
             </p>
             <div className="flex gap-1.5">
@@ -223,7 +223,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1 block font-mono text-[9.5px] uppercase tracking-[0.12em] text-faint">
+      <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint">
         {label}
       </span>
       <input
@@ -231,7 +231,7 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="h-8 w-full rounded-md border border-line bg-ink/[0.035] px-2.5 text-[12px] text-ink placeholder:text-faint/50 focus:border-lime/40 focus:outline-none"
+        className="h-8 w-full rounded-md border border-line bg-ink/[0.035] px-2.5 text-[13px] text-ink placeholder:text-faint/50 focus:border-lime/40 focus:outline-none"
       />
     </label>
   );
@@ -255,7 +255,7 @@ export function AboutDialog({
         description="一个 Atoms 风格的 Demo：自然语言 → 可运行应用。"
       >
         <div className="space-y-4 px-5 py-4">
-          <p className="text-[12px] leading-relaxed text-dim">
+          <p className="text-[13px] leading-relaxed text-dim">
             Agent 会先拆解需求并输出实施计划，再逐个文件写出可运行的
             HTML / CSS / JS，预览在沙箱 iframe 中实时运行；每次构建自动存档，可回滚、可分享。
           </p>
@@ -269,20 +269,20 @@ export function AboutDialog({
               ["栈", "Next.js · TypeScript · Tailwind"],
             ].map(([k, v]) => (
               <div key={k} className="rounded-lg border border-line bg-ink/[0.02] px-2.5 py-2">
-                <p className="font-mono text-[9px] uppercase tracking-[0.12em] text-faint/60">{k}</p>
-                <p className="mt-0.5 text-[11.5px] text-dim">{v}</p>
+                <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint/60">{k}</p>
+                <p className="mt-0.5 text-[12.5px] text-dim">{v}</p>
               </div>
             ))}
           </div>
           <div className="flex items-center justify-between border-t border-line pt-3">
-            <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-faint/60">
+            <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-faint/60">
               快捷键：⌘K 新建 · ⌘↵ 发送 · Esc 关闭
             </p>
             <a
               href="https://atoms.dev/"
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 text-[11px] text-dim hover:text-ink"
+              className="flex items-center gap-1 text-[12px] text-dim hover:text-ink"
             >
               Atoms 参考 <ExternalLink size={10} />
             </a>

@@ -110,19 +110,19 @@ export function PreviewPanel({
                 key={id}
                 onClick={() => onTabChange(id)}
                 className={cn(
-                  "relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[11.5px] transition-colors",
+                  "relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-[12.5px] transition-colors",
                   active ? "text-ink" : "text-faint hover:text-dim",
                 )}
               >
                 <Icon size={12} />
                 {label}
                 {id === "console" && errorCount > 0 ? (
-                  <span className="grid size-3.5 place-items-center rounded-full bg-danger/20 font-mono text-[8.5px] text-danger">
+                  <span className="grid size-3.5 place-items-center rounded-full bg-danger/20 font-mono text-[10.5px] text-danger">
                     {errorCount}
                   </span>
                 ) : null}
                 {id === "versions" && versions.length > 0 ? (
-                  <span className="font-mono text-[9px] text-faint/60">{versions.length}</span>
+                  <span className="font-mono text-[10.5px] text-faint/60">{versions.length}</span>
                 ) : null}
                 {active ? (
                   <motion.span
@@ -266,7 +266,7 @@ function MenuItem({
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[12px] text-dim transition-colors hover:bg-ink/[0.05] hover:text-ink"
+      className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-[13px] text-dim transition-colors hover:bg-ink/[0.05] hover:text-ink"
     >
       <Icon size={12} />
       {label}
@@ -281,10 +281,10 @@ function EmptyPreview({ running, hasProject }: { running: boolean; hasProject: b
         <div className="mx-auto grid size-11 place-items-center rounded-xl border border-line bg-ink/[0.02]">
           <Sparkles size={16} className="text-faint" />
         </div>
-        <p className="mt-3 text-[12.5px] text-dim">
+        <p className="mt-3 text-[13.5px] text-dim">
           {running ? "Agent 正在构建…" : hasProject ? "切换到预览" : "预览区空闲"}
         </p>
-        <p className="mt-1 text-[11px] leading-relaxed text-faint/70">
+        <p className="mt-1 text-[12px] leading-relaxed text-faint/70">
           {running
             ? "生成完成后会自动在这里运行。"
             : "在左侧描述一个应用，Agent 写出的代码会立刻在这里运行，可交互、可刷新。"}
@@ -307,8 +307,8 @@ function EmptyPane({
     <div className="flex flex-1 items-center justify-center rounded-xl border border-dashed border-line bg-ink/[0.01]">
       <div className="max-w-[280px] px-6 text-center">
         <Icon size={18} className="mx-auto text-faint/50" />
-        <p className="mt-3 text-[12.5px] text-dim">{title}</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-faint/70">{description}</p>
+        <p className="mt-3 text-[13.5px] text-dim">{title}</p>
+        <p className="mt-1 text-[12px] leading-relaxed text-faint/70">{description}</p>
       </div>
     </div>
   );
@@ -325,11 +325,11 @@ function BuildSkeleton({ activeLabel, files }: { activeLabel?: string; files: Fi
             <span className="absolute inline-flex size-2 animate-ping rounded-full bg-lime/40" />
             <span className="relative inline-flex size-2 rounded-full bg-lime" />
           </span>
-          <span className="text-[11.5px] text-dim">
+          <span className="text-[12.5px] text-dim">
             {activeLabel ? `${activeLabel}…` : "Agent 正在组装界面"}
           </span>
         </div>
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-faint/60">
+        <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-faint/60">
           {paths.length} files
         </span>
       </div>
@@ -360,8 +360,8 @@ function BuildSkeleton({ activeLabel, files }: { activeLabel?: string; files: Fi
                 key={p}
                 className="flex items-center justify-between rounded-md border border-dashed border-line px-2 py-1.5"
               >
-                <span className="font-mono text-[9.5px] text-faint/50">{p}</span>
-                <span className="font-mono text-[8.5px] text-faint/40">queued</span>
+                <span className="font-mono text-[10.5px] text-faint/50">{p}</span>
+                <span className="font-mono text-[10.5px] text-faint/40">queued</span>
               </div>
             ))
           : paths.map((p) => (
@@ -369,8 +369,8 @@ function BuildSkeleton({ activeLabel, files }: { activeLabel?: string; files: Fi
                 key={p}
                 className="flex items-center justify-between rounded-md border border-lime/15 bg-lime/[0.04] px-2 py-1.5"
               >
-                <span className="truncate font-mono text-[9.5px] text-dim">{p}</span>
-                <span className="font-mono text-[8.5px] text-lime/70">written</span>
+                <span className="truncate font-mono text-[10.5px] text-dim">{p}</span>
+                <span className="font-mono text-[10.5px] text-lime/70">written</span>
               </div>
             ))}
       </div>

@@ -99,6 +99,7 @@ scripts/
 docs/
   recipe-spec.md             # recipe 契约与设计规范（队友/协作者必读）
   笔试说明.md                # 笔试提交用说明文档（实现思路 / 完成度 / 扩展优先级）
+  自检与优化清单.md          # 按评估维度的自检：亮点、工程债、剩余优先级
   source/                    # 笔试题原始文档与导入文本
 shots/                       # 截图产物（工作台各状态 + 13 个生成应用）
 ```
@@ -133,8 +134,10 @@ node scripts/shots.mjs                 # UI 截图回归（输出 shots/*.png）
 node scripts/qa-ui.mjs                 # 布局/对比度/移动端审计
 ```
 
-当前状态：`typecheck` ✅、recipe 全量 14/14 PASS ✅、主流程 E2E 10/10 PASS ✅、
-真实模型两条协议链路 PASS ✅、控制台零报错 ✅。
+当前状态：`typecheck` ✅、`build` ✅、recipe 全量 14/14 PASS ✅、主流程 E2E 11/11 PASS ✅
+（含生成取消/重试）、真实模型两条协议链路 PASS ✅、桌面与 390px 移动端零横向溢出、控制台零报错 ✅。
+
+> 完整的按维度自检与剩余优化优先级见 [`docs/自检与优化清单.md`](docs/自检与优化清单.md)。
 
 ## 已知限制
 

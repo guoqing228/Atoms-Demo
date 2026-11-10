@@ -25,7 +25,7 @@ export function Tip({
           side={side}
           sideOffset={6}
           className={cn(
-            "z-50 select-none rounded-md border border-line-strong bg-popover px-2 py-1 text-[11.5px] font-medium text-ink shadow-[0_10px_30px_-12px_rgba(34,31,26,0.35)]",
+            "z-50 select-none rounded-md border border-line-strong bg-popover px-2 py-1 text-[12.5px] font-medium text-ink shadow-[0_10px_30px_-12px_rgba(34,31,26,0.35)]",
             "data-[state=delayed-open]:animate-[fade-in_120ms_ease-out]",
           )}
         >

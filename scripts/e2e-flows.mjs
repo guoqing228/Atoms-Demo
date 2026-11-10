@@ -32,6 +32,23 @@ async function waitForBuilds(n) {
   );
 }
 
+/* 0. cancel a run ------------------------------------------------------ */
+await page.goto(BASE, { waitUntil: "networkidle" });
+await page.getByRole("button", { name: /看板/ }).first().click();
+await page.waitForTimeout(900);
+const stopBtn = page.getByRole("button", { name: "停止" });
+const hasStop = await stopBtn.count();
+if (hasStop) {
+  await stopBtn.first().click();
+  await page.waitForTimeout(900);
+  const cancelled = (await page.locator("body").innerText()).includes("已取消生成");
+  check("cancel: stop button aborts the run", cancelled);
+  await page.getByRole("button", { name: /新建应用/ }).click();
+  await page.waitForTimeout(400);
+} else {
+  check("cancel: stop button aborts the run", false, "stop button not visible while running");
+}
+
 /* 1. create ------------------------------------------------------------ */
 await page.goto(BASE, { waitUntil: "networkidle" });
 await page.getByRole("button", { name: /待办清单/ }).first().click();

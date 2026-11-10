@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Loader2, Sparkles, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/bits";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ export function Composer({
   value,
   onChange,
   onSubmit,
+  onStop,
   running = false,
   variant = "hero",
   placeholder = "描述你想要的应用…",
@@ -19,6 +20,7 @@ export function Composer({
   value: string;
   onChange: (v: string) => void;
   onSubmit: () => void;
+  onStop?: () => void;
   running?: boolean;
   variant?: "hero" | "chat";
   placeholder?: string;
@@ -76,7 +78,7 @@ export function Composer({
         placeholder={placeholder}
         className={cn(
           "block w-full resize-none bg-transparent text-ink outline-none placeholder:text-faint/80",
-          hero ? "px-4 pt-3.5 pb-1 text-[14px] leading-relaxed" : "px-3 pt-2.5 pb-1 text-[13px]",
+          hero ? "px-4 pt-3.5 pb-1 text-[15.5px] leading-relaxed" : "px-3 pt-2.5 pb-1 text-[14.5px]",
         )}
       />
 
@@ -90,14 +92,14 @@ export function Composer({
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border border-line bg-ink/[0.03] font-mono uppercase tracking-[0.08em] text-faint",
-              hero ? "px-2 py-1 text-[9.5px]" : "px-1.5 py-0.5 text-[9px]",
+              hero ? "px-2 py-1 text-[10.5px]" : "px-1.5 py-0.5 text-[10.5px]",
             )}
           >
             <Sparkles size={hero ? 11 : 9} className="text-lime/80" />
             mock agent
           </span>
           {hero ? (
-            <span className="hidden font-mono text-[9.5px] uppercase tracking-[0.12em] text-faint/60 sm:block">
+            <span className="hidden font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint/60 sm:block">
               无需 API Key
             </span>
           ) : null}
@@ -105,23 +107,37 @@ export function Composer({
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          <span className="hidden items-center gap-1 text-[10.5px] text-faint/70 sm:flex">
+          <span className="hidden items-center gap-1 text-[11.5px] text-faint/70 sm:flex">
             <Kbd>{hero ? "⌘" : "⏎"}</Kbd>
             <span>{hero ? "↵ 生成" : "发送"}</span>
           </span>
-          <Button
-            type="submit"
-            size={hero ? "md" : "icon-sm"}
-            className={cn(hero ? "h-8 gap-1.5 px-3 text-[12px]" : "size-7")}
-            disabled={running || !value.trim()}
-          >
-            {running ? (
-              <Loader2 size={hero ? 13 : 12} className="animate-spin" />
-            ) : (
-              <ArrowUp size={hero ? 13 : 12} />
-            )}
-            {hero ? <span>生成应用</span> : null}
-          </Button>
+          {running && onStop ? (
+            <Button
+              type="button"
+              variant="soft"
+              size={hero ? "md" : "icon-sm"}
+              className={cn(hero ? "h-8 gap-1.5 px-3 text-[13px]" : "size-7")}
+              onClick={onStop}
+              title="停止生成"
+            >
+              <Square size={hero ? 11 : 10} className="fill-current" />
+              {hero ? <span>停止</span> : null}
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              size={hero ? "md" : "icon-sm"}
+              className={cn(hero ? "h-8 gap-1.5 px-3 text-[13px]" : "size-7")}
+              disabled={running || !value.trim()}
+            >
+              {running ? (
+                <Loader2 size={hero ? 13 : 12} className="animate-spin" />
+              ) : (
+                <ArrowUp size={hero ? 13 : 12} />
+              )}
+              {hero ? <span>生成应用</span> : null}
+            </Button>
+          )}
         </div>
       </div>
     </form>

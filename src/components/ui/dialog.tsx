@@ -33,7 +33,7 @@ export const DialogContent = React.forwardRef<
             {title}
           </DialogPrimitive.Title>
           {description ? (
-            <DialogPrimitive.Description className="mt-1 text-[12.5px] leading-relaxed text-dim">
+            <DialogPrimitive.Description className="mt-1 text-[13.5px] leading-relaxed text-dim">
               {description}
             </DialogPrimitive.Description>
           ) : null}

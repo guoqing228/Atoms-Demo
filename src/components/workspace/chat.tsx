@@ -10,6 +10,7 @@ import {
   Filter,
   Grip,
   LayoutGrid,
+  RotateCcw,
   Share2,
   Sparkles,
   Zap,
@@ -51,6 +52,8 @@ export function Chat({
   onFollowUp,
   onShare,
   onExport,
+  onStop,
+  onRetry,
 }: {
   projectName?: string | null;
   messages: ChatMessage[];
@@ -62,6 +65,8 @@ export function Chat({
   onFollowUp: (text: string) => void;
   onShare: () => void;
   onExport: () => void;
+  onStop?: () => void;
+  onRetry?: (prompt: string) => void;
 }) {
   const scrollRef = React.useRef<HTMLDivElement>(null);
   const [pinned, setPinned] = React.useState(true);
@@ -77,21 +82,21 @@ export function Chat({
   }, [itemCount, run?.logs.length, run?.files, run?.plan, run?.status]);
 
   return (
-    <section className="flex h-[46vh] w-full shrink-0 flex-col border-b border-line bg-panel md:h-auto md:w-[396px] md:border-b-0 md:border-r">
+    <section className="flex h-[46vh] w-full shrink-0 flex-col border-b border-line bg-panel md:h-auto md:w-[420px] md:border-b-0 md:border-r">
       <div className="flex h-11 shrink-0 items-center justify-between border-b border-line px-3.5">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-faint">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-faint">
             session
           </span>
-          <span className="truncate text-[12.5px] text-ink">{projectName || "新的对话"}</span>
+          <span className="truncate text-[13.5px] text-ink">{projectName || "新的对话"}</span>
         </div>
         {running ? (
-          <span className="flex items-center gap-1.5 font-mono text-[9.5px] uppercase tracking-[0.1em] text-lime">
+          <span className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.1em] text-lime">
             <span className="size-1.5 animate-pulse rounded-full bg-lime" />
             generating
           </span>
         ) : (
-          <span className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-faint/60">
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.1em] text-faint/60">
             {messages.length} turns
           </span>
         )}
@@ -108,7 +113,7 @@ export function Chat({
       >
         {messages.length === 0 && !run ? (
           <div className="pt-6 text-center">
-            <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-faint/60">
+            <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-faint/60">
               no session yet
             </p>
           </div>
@@ -129,25 +134,25 @@ export function Chat({
           ) : (
             <div key={message.id} className="flex gap-2.5">
               <SparkAvatar />
-              <p className="pt-1 text-[12.5px] leading-relaxed text-dim">{message.content}</p>
+              <p className="pt-1 text-[13.5px] leading-relaxed text-dim">{message.content}</p>
             </div>
           ),
         )}
 
-        {run ? <RunPanel run={run} /> : null}
+        {run ? <RunPanel run={run} onRetry={onRetry} /> : null}
       </div>
 
       <div className="shrink-0 border-t border-line bg-panel p-2.5">
         {!running && messages.length > 0 ? (
           <div className="mb-2 flex flex-wrap gap-1.5">
-            <span className="flex items-center font-mono text-[9px] uppercase tracking-[0.14em] text-faint/60">
+            <span className="flex items-center font-mono text-[10.5px] uppercase tracking-[0.14em] text-faint/60">
               继续迭代
             </span>
             {FOLLOW_UPS.slice(0, 3).map((suggestion) => (
               <button
                 key={suggestion}
                 onClick={() => onFollowUp(suggestion)}
-                className="rounded-full border border-line bg-ink/[0.02] px-2 py-1 text-[10.5px] text-dim transition-colors hover:border-lime/30 hover:bg-lime/[0.06] hover:text-ink"
+                className="rounded-full border border-line bg-ink/[0.02] px-2 py-1 text-[11.5px] text-dim transition-colors hover:border-lime/30 hover:bg-lime/[0.06] hover:text-ink"
               >
                 {suggestion}
               </button>
@@ -159,6 +164,7 @@ export function Chat({
           value={draft}
           onChange={onDraftChange}
           onSubmit={onSend}
+          onStop={onStop}
           running={running}
           placeholder={running ? "Agent 正在构建…" : "继续描述你的修改…"}
         />
@@ -175,10 +181,10 @@ function UserBubble({ text, at }: { text: string; at: number }) {
       transition={{ duration: 0.22 }}
       className="flex flex-col items-end gap-1"
     >
-      <div className="max-w-[86%] rounded-2xl rounded-br-md border border-line bg-elev px-3.5 py-2.5 text-[12.5px] leading-relaxed text-ink panel-shadow">
+      <div className="max-w-[86%] rounded-2xl rounded-br-md border border-line bg-elev px-3.5 py-2.5 text-[13.5px] leading-relaxed text-ink panel-shadow">
         {text}
       </div>
-      <span className="pr-1 font-mono text-[9px] text-faint/50">{clock(at)}</span>
+      <span className="pr-1 font-mono text-[10.5px] text-faint/50">{clock(at)}</span>
     </motion.div>
   );
 }
@@ -209,18 +215,18 @@ function AppCard({
           <span className="grid size-3.5 place-items-center rounded-full bg-ok/15">
             <Check size={9} className="text-ok" />
           </span>
-          <p className="text-[12.5px] text-ink">
+          <p className="text-[13.5px] text-ink">
             已构建 <span className="font-medium">{plan.name}</span>
           </p>
         </div>
-        <p className="mt-1 text-[11.5px] leading-relaxed text-dim">{plan.tagline}</p>
+        <p className="mt-1 text-[12.5px] leading-relaxed text-dim">{plan.tagline}</p>
 
         <div className="mt-2.5 overflow-hidden rounded-xl border border-line bg-ink/[0.02]">
           <div className="flex items-center justify-between border-b border-line px-3 py-2">
-            <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-lime/80">
+            <span className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-lime/80">
               实施计划
             </span>
-            <span className="font-mono text-[9px] text-faint/60">
+            <span className="font-mono text-[10.5px] text-faint/60">
               {meta?.ms ? `${(meta.ms / 1000).toFixed(1)}s` : ""}
             </span>
           </div>
@@ -231,14 +237,14 @@ function AppCard({
                 <div key={feature.title} className="flex items-start gap-2">
                   <Icon size={12} className="mt-0.5 shrink-0 text-lime/80" />
                   <div className="min-w-0">
-                    <p className="text-[11.5px] leading-snug text-ink">{feature.title}</p>
-                    <p className="text-[10.5px] leading-snug text-faint">{feature.detail}</p>
+                    <p className="text-[12.5px] leading-snug text-ink">{feature.title}</p>
+                    <p className="text-[11.5px] leading-snug text-faint">{feature.detail}</p>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex items-center justify-between border-t border-line px-3 py-1.5 font-mono text-[9.5px] text-faint/70">
+          <div className="flex items-center justify-between border-t border-line px-3 py-1.5 font-mono text-[10.5px] text-faint/70">
             <span>
               {(meta?.files || []).length} files · {bytes(totalBytes)}
             </span>
@@ -266,13 +272,13 @@ function ErrorCard({ text }: { text: string }) {
         <CircleAlert size={13} className="text-danger" />
       </div>
       <div className="min-w-0 flex-1 rounded-lg border border-danger/20 bg-danger/[0.06] px-3 py-2">
-        <p className="text-[12px] leading-relaxed text-danger">{text}</p>
+        <p className="text-[13px] leading-relaxed text-danger">{text}</p>
       </div>
     </div>
   );
 }
 
-function RunPanel({ run }: { run: RunView }) {
+function RunPanel({ run, onRetry }: { run: RunView; onRetry?: (prompt: string) => void }) {
   return (
     <div className="flex gap-2.5">
       <SparkAvatar />
@@ -284,7 +290,7 @@ function RunPanel({ run }: { run: RunView }) {
                 key={log.id}
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="text-[12px] leading-relaxed text-dim"
+                className="text-[13px] leading-relaxed text-dim"
               >
                 {log.text}
               </motion.p>
@@ -300,26 +306,26 @@ function RunPanel({ run }: { run: RunView }) {
           >
             <div className="flex items-center justify-between border-b border-line px-3 py-2">
               <div className="flex min-w-0 items-center gap-2">
-                <span className="font-mono text-[9px] uppercase tracking-[0.16em] text-lime/80">
+                <span className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-lime/80">
                   新应用
                 </span>
-                <span className="truncate text-[12.5px] font-medium text-ink">
+                <span className="truncate text-[13.5px] font-medium text-ink">
                   {run.plan.name}
                 </span>
               </div>
-              <span className="rounded border border-line-strong px-1 py-px font-mono text-[8.5px] uppercase text-faint">
+              <span className="rounded border border-line-strong px-1 py-px font-mono text-[10.5px] uppercase text-faint">
                 plan
               </span>
             </div>
             <div className="px-3 py-2.5">
-              <p className="text-[11.5px] leading-relaxed text-dim">{run.plan.tagline}</p>
+              <p className="text-[12.5px] leading-relaxed text-dim">{run.plan.tagline}</p>
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 {run.plan.features.map((feature) => {
                   const Icon = FEATURE_ICONS[feature.icon] ?? Sparkles;
                   return (
                     <div key={feature.title} className="flex items-start gap-1.5">
                       <Icon size={11} className="mt-0.5 shrink-0 text-lime/70" />
-                      <p className="text-[11px] leading-snug text-dim">
+                      <p className="text-[12px] leading-snug text-dim">
                         <span className="text-ink">{feature.title}</span>
                         <span className="text-faint"> · {feature.detail}</span>
                       </p>
@@ -345,19 +351,19 @@ function RunPanel({ run }: { run: RunView }) {
                 )}
                 <span
                   className={cn(
-                    "font-mono text-[10px] uppercase tracking-[0.12em]",
+                    "font-mono text-[11px] uppercase tracking-[0.12em]",
                     step.status === "done" ? "text-faint" : "text-ink",
                   )}
                 >
                   {step.label}
                 </span>
                 {step.detail ? (
-                  <span className="truncate font-mono text-[9.5px] text-faint/60">
+                  <span className="truncate font-mono text-[10.5px] text-faint/60">
                     {step.detail}
                   </span>
                 ) : null}
                 {step.status === "start" ? (
-                  <span className="ml-auto font-mono text-[9px] text-lime/70">…</span>
+                  <span className="ml-auto font-mono text-[10.5px] text-lime/70">…</span>
                 ) : null}
               </div>
             ))}
@@ -369,8 +375,8 @@ function RunPanel({ run }: { run: RunView }) {
             {Object.entries(run.files).map(([path, content]) => (
               <div key={path} className="relative overflow-hidden rounded-md bg-ink/[0.02] px-2 py-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-mono text-[10px] text-dim">{path}</span>
-                  <span className="shrink-0 font-mono text-[9px] text-faint/60">
+                  <span className="truncate font-mono text-[11px] text-dim">{path}</span>
+                  <span className="shrink-0 font-mono text-[10.5px] text-faint/60">
                     {lineCount(content)} 行 · {bytes(new TextEncoder().encode(content).length)}
                   </span>
                 </div>
@@ -382,17 +388,27 @@ function RunPanel({ run }: { run: RunView }) {
           </div>
         ) : null}
 
-        {run.status === "error" && run.error ? <ErrorCard text={run.error} /> : null}
+        {run.status === "error" && run.error ? (
+          <div className="space-y-2">
+            <ErrorCard text={run.error} />
+            {onRetry && run.error !== "已取消生成" ? (
+              <Button size="sm" variant="soft" onClick={() => onRetry(run.prompt)}>
+                <RotateCcw size={12} />
+                重试这一步
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         {run.status === "done" ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="mt-2.5 flex items-center gap-1.5 text-[11px] text-ok/90"
+            className="mt-2.5 flex items-center gap-1.5 text-[12px] text-ok/90"
           >
             <Check size={11} />
             构建完成，预览已就绪
-            {run.ms ? <span className="font-mono text-[9.5px] text-faint/60">{run.ms}ms</span> : null}
+            {run.ms ? <span className="font-mono text-[10.5px] text-faint/60">{run.ms}ms</span> : null}
           </motion.div>
         ) : null}
       </div>

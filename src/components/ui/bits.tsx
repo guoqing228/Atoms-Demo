@@ -10,7 +10,7 @@ export function Kbd({
   return (
     <kbd
       className={cn(
-        "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line bg-ink/[0.05] px-1 font-mono text-[10px] leading-none text-faint",
+        "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border border-line bg-ink/[0.05] px-1 font-mono text-[11px] leading-none text-faint",
         className,
       )}
     >
@@ -32,7 +32,7 @@ export function Eyebrow({
   return (
     <div
       className={cn(
-        "flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.18em] text-faint",
+        "flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.18em] text-faint",
         className,
       )}
     >

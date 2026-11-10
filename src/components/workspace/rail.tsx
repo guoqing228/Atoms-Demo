@@ -38,7 +38,7 @@ export function Rail({
   }, [projects, query]);
 
   return (
-    <aside className="flex w-[244px] shrink-0 flex-col border-r border-line bg-panel">
+    <aside className="flex w-[252px] shrink-0 flex-col border-r border-line bg-panel">
       <div className="p-3">
         <Button
           onClick={onNew}
@@ -47,9 +47,9 @@ export function Rail({
         >
           <span className="flex items-center gap-2">
             <Plus size={14} className="text-lime" />
-            <span className="text-[12.5px]">新建应用</span>
+            <span className="text-[13.5px]">新建应用</span>
           </span>
-          <Kbd className="border-line bg-transparent text-[9px] text-faint">⌘K</Kbd>
+          <Kbd className="border-line bg-transparent text-[10.5px] text-faint">⌘K</Kbd>
         </Button>
 
         <div className="relative mt-2.5">
@@ -61,25 +61,25 @@ export function Rail({
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="搜索项目"
-            className="h-8 w-full rounded-lg border border-transparent bg-ink/[0.035] pl-8 pr-2 text-[12px] text-ink placeholder:text-faint focus:border-line focus:bg-ink/[0.05] focus:outline-none"
+            className="h-8 w-full rounded-lg border border-transparent bg-ink/[0.035] pl-8 pr-2 text-[13px] text-ink placeholder:text-faint focus:border-line focus:bg-ink/[0.05] focus:outline-none"
           />
         </div>
       </div>
 
       <div className="flex items-center justify-between px-4 pb-1.5 pt-1">
-        <span className="font-mono text-[9.5px] uppercase tracking-[0.18em] text-faint">
+        <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-faint">
           最近项目
         </span>
-        <span className="font-mono text-[9.5px] text-faint/60">{filtered.length}</span>
+        <span className="font-mono text-[10.5px] text-faint/60">{filtered.length}</span>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
         {filtered.length === 0 ? (
           <div className="mx-1 mt-2 rounded-lg border border-dashed border-line px-3 py-6 text-center">
-            <p className="text-[11.5px] text-faint">
+            <p className="text-[12.5px] text-faint">
               {projects.length === 0 ? "还没有项目" : "没有匹配的项目"}
             </p>
-            <p className="mt-1 text-[10.5px] leading-relaxed text-faint/60">
+            <p className="mt-1 text-[11.5px] leading-relaxed text-faint/60">
               {projects.length === 0 ? "生成第一个应用后会自动保存在这里" : "换个关键词试试"}
             </p>
           </div>
@@ -121,7 +121,7 @@ export function Rail({
                         />
                       ) : null}
                       <div
-                        className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md border font-mono text-[10px] uppercase"
+                        className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md border font-mono text-[11px] uppercase"
                         style={{
                           borderColor: `${project.theme.accent}33`,
                           color: project.theme.accent,
@@ -133,13 +133,13 @@ export function Rail({
                       <div className="min-w-0 flex-1">
                         <p
                           className={cn(
-                            "truncate text-[12.5px] leading-5",
+                            "truncate text-[13.5px] leading-5",
                             active ? "text-ink" : "text-dim group-hover:text-ink",
                           )}
                         >
                           {project.plan.name || project.name}
                         </p>
-                        <p className="mt-0.5 truncate font-mono text-[10px] text-faint/70">
+                        <p className="mt-0.5 truncate font-mono text-[11px] text-faint/70">
                           {fileCount} 文件 · {lineCount(project.files["app.js"] || "")} 行 ·{" "}
                           {timeAgo(project.updatedAt)}
                         </p>
@@ -170,19 +170,19 @@ export function Rail({
       <div className="border-t border-line p-2">
         <button
           onClick={onSettings}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-dim transition-colors hover:bg-ink/[0.04] hover:text-ink"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-dim transition-colors hover:bg-ink/[0.04] hover:text-ink"
         >
           <Settings2 size={13} />
           设置
         </button>
         <button
           onClick={onAbout}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[12px] text-dim transition-colors hover:bg-ink/[0.04] hover:text-ink"
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-dim transition-colors hover:bg-ink/[0.04] hover:text-ink"
         >
           <Info size={13} />
           关于与快捷键
         </button>
-        <p className="mt-1.5 px-2 font-mono text-[9.5px] uppercase tracking-[0.1em] text-faint/50">
+        <p className="mt-1.5 px-2 font-mono text-[10.5px] uppercase tracking-[0.1em] text-faint/50">
           v0.1 · local-first · mock agent
         </p>
       </div>

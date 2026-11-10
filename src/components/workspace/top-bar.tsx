@@ -43,11 +43,11 @@ export function TopBar({
         <Logo />
         <span className="hidden h-4 w-px bg-ink/10 sm:block" />
         <div className="hidden min-w-0 items-center gap-2 sm:flex">
-          <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-faint">
+          <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">
             workspace
           </span>
           <span className="text-faint/60">/</span>
-          <span className="max-w-[220px] truncate text-[12.5px] text-dim">
+          <span className="max-w-[220px] truncate text-[13.5px] text-dim">
             {projectName || "新应用"}
           </span>
         </div>
@@ -56,7 +56,7 @@ export function TopBar({
       <div className="flex items-center gap-1.5">
         <div
           className={cn(
-            "mr-1 hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.1em] md:flex",
+            "mr-1 hidden items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[11px] uppercase tracking-[0.1em] md:flex",
             chip.className,
           )}
         >

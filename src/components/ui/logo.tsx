@@ -41,10 +41,10 @@ export function Logo({ className }: { className?: string }) {
     <div className={cn("flex items-center gap-2.5", className)}>
       <LogoMark className="text-ink" />
       <div className="flex items-baseline gap-1.5">
-        <span className="text-[13.5px] font-semibold uppercase tracking-[0.14em] text-ink">
+        <span className="text-[14.5px] font-semibold uppercase tracking-[0.14em] text-ink">
           VibeForge
         </span>
-        <span className="rounded border border-lime/25 bg-lime/[0.08] px-1 py-px font-mono text-[8.5px] uppercase tracking-[0.12em] text-lime/90">
+        <span className="rounded border border-lime/25 bg-lime/[0.08] px-1 py-px font-mono text-[10.5px] uppercase tracking-[0.12em] text-lime/90">
           alpha
         </span>
       </div>

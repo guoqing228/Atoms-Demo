@@ -32,9 +32,11 @@ const ACCENTS = ["#2e5e4c", "#b3552f", "#4a6b8a", "#8a6a3a", "#6b4a63", "#3d6b64
 
 export function Hero({
   onSubmit,
+  onStop,
   running,
 }: {
   onSubmit: (prompt: string) => void;
+  onStop?: () => void;
   running?: boolean;
 }) {
   const [prompt, setPrompt] = useState("");
@@ -52,7 +54,7 @@ export function Hero({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="flex items-center gap-2.5 font-mono text-[10px] uppercase tracking-[0.24em] text-faint">
+          <div className="flex items-center gap-2.5 font-mono text-[11px] uppercase tracking-[0.24em] text-faint">
             <span className="size-1.5 bg-lime" />
             <span>AI native app studio</span>
             <span className="h-px w-8 bg-ink/15" />
@@ -66,7 +68,7 @@ export function Hero({
             <span className="text-lime">。</span>
           </h1>
 
-          <p className="mt-5 max-w-[540px] text-[13.5px] leading-relaxed text-dim">
+          <p className="mt-5 max-w-[540px] text-[14.5px] leading-relaxed text-dim">
             用一句话描述需求，VibeForge 会拆解需求、设计界面、写出可直接运行的代码，
             并在右侧实时预览。不满意就继续说，每一次迭代都会成为一个可回滚的版本。
           </p>
@@ -86,6 +88,7 @@ export function Hero({
               if (prompt.trim()) onSubmit(prompt.trim());
             }}
             running={running}
+            onStop={onStop}
             autoFocus
             placeholder="例如：做一个记账应用，支持分类统计、月度汇总和趋势图表，界面要清爽…"
           />
@@ -98,10 +101,10 @@ export function Hero({
           className="mt-10"
         >
           <div className="mb-3 flex items-baseline justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-faint">
+            <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
               从这些开始
             </span>
-            <span className="font-mono text-[10px] text-faint/50">08 recipes</span>
+            <span className="font-mono text-[11px] text-faint/50">08 recipes</span>
           </div>
 
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
@@ -129,12 +132,12 @@ export function Hero({
                     >
                       <Icon size={15} />
                     </span>
-                    <span className="font-mono text-[9.5px] text-faint/50">
+                    <span className="font-mono text-[10.5px] text-faint/50">
                       {String(i + 1).padStart(2, "0")}
                     </span>
                   </div>
-                  <p className="mt-3 text-[12.5px] font-medium text-ink">{tpl.title}</p>
-                  <p className="mt-0.5 truncate text-[10.5px] text-faint">{tpl.desc}</p>
+                  <p className="mt-3 text-[13.5px] font-medium text-ink">{tpl.title}</p>
+                  <p className="mt-0.5 truncate text-[11.5px] text-faint">{tpl.desc}</p>
                   <ArrowUpRight
                     size={13}
                     className="absolute bottom-3 right-3 translate-y-1 text-faint opacity-0 transition-all duration-200 group-hover:translate-y-0 group-hover:opacity-100"
@@ -149,7 +152,7 @@ export function Hero({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 font-mono text-[10px] uppercase tracking-[0.12em] text-faint/70"
+          className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-2 border-t border-line pt-4 font-mono text-[11px] uppercase tracking-[0.12em] text-faint/70"
         >
           <span className={cn("flex items-center gap-1.5")}>
             <span className="size-1 bg-lime/70" />

@@ -36,14 +36,14 @@ export function ConsolePane({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-panel">
       <div className="flex h-8 shrink-0 items-center justify-between border-b border-line px-2.5">
-        <span className="flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.16em] text-faint">
+        <span className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-[0.16em] text-faint">
           <Terminal size={10} />
           runtime console
           <span className="text-faint/50">({entries.length})</span>
         </span>
         <button
           onClick={onClear}
-          className="flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[9.5px] text-faint transition-colors hover:bg-ink/[0.06] hover:text-ink"
+          className="flex items-center gap-1 rounded px-1.5 py-1 font-mono text-[10.5px] text-faint transition-colors hover:bg-ink/[0.06] hover:text-ink"
         >
           <Eraser size={10} />
           清空
@@ -54,8 +54,8 @@ export function ConsolePane({
         {entries.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-2 text-center">
             <Terminal size={18} className="text-faint/40" />
-            <p className="text-[11.5px] text-faint">还没有运行时日志</p>
-            <p className="max-w-[240px] text-[10.5px] leading-relaxed text-faint/60">
+            <p className="text-[12.5px] text-faint">还没有运行时日志</p>
+            <p className="max-w-[240px] text-[11.5px] leading-relaxed text-faint/60">
               生成应用后，这里会实时显示它的 console 输出和未捕获错误，方便你直接让 Agent 修复。
             </p>
           </div>
@@ -64,12 +64,12 @@ export function ConsolePane({
             {entries.map((entry) => (
               <div
                 key={entry.id}
-                className="flex items-start gap-2 rounded px-1.5 py-1 font-mono text-[10.5px] leading-relaxed hover:bg-ink/[0.02]"
+                className="flex items-start gap-2 rounded px-1.5 py-1 font-mono text-[11.5px] leading-relaxed hover:bg-ink/[0.02]"
               >
-                <span className="shrink-0 pt-px text-[9px] text-faint/40">{clock(entry.at)}</span>
+                <span className="shrink-0 pt-px text-[10.5px] text-faint/40">{clock(entry.at)}</span>
                 <span
                   className={cn(
-                    "mt-px shrink-0 rounded border px-1 text-[8.5px] uppercase leading-[14px]",
+                    "mt-px shrink-0 rounded border px-1 text-[10.5px] uppercase leading-[14px]",
                     LEVEL_STYLE[entry.level],
                   )}
                 >
