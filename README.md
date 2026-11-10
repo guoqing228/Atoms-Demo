@@ -123,6 +123,19 @@ pnpm dlx vercel deploy --prod        # 首次会提示登录 / 关联项目
 
 > 也可以让访问者自带 Key（设置面板），Key 只存访问者本地、随请求发给同源代理，不写入代码与分享链接。
 
+## 笔试需求覆盖（自动验证）
+
+笔试要求「真实交互 / 数据持久化 / 基本使用流程 / 至少一个延展能力」。
+四项均已满足并有可复跑的自动化证据（`node scripts/verify-requirements.mjs`，报告写入
+`docs/需求覆盖验证报告.md`）：
+
+| 要求 | 实现 | 自动验证证据 |
+| --- | --- | --- |
+| 真实交互（非静态） | 生成过程流式可交互；生成结果在沙箱 iframe 真实运行 | 脚本进入生成的应用：输入+回车新增任务、统计实时更新、筛选 tab 真实过滤 |
+| 数据持久化 | 产品：IndexedDB（项目/会话/版本）；生成应用：localStorage（+ 不可用时的内存降级桥） | 刷新 iframe 后新增数据仍在；整页刷新后项目仍在；重开项目代码与数据一并恢复 |
+| 基本流程（初始化/主流程） | 空状态初始化 + 8 个起步模板；核心流程 = 输入 → 理解 → 计划 → 写文件 → 自检 → 预览 | 协议断言完整事件序列（understand/design/code/verify + 3 files + done）；流式耗时 5–6s 可感知 |
+| 延展能力 | 多轮迭代、版本时间线/回滚、分享链接、导出 HTML/JSON、运行时控制台 | 脚本逐项操作并断言（迭代后版本 +1、回滚生效、分享链接新标签页可直接运行、导出触发下载） |
+
 ## 测试
 
 ```bash
@@ -130,12 +143,14 @@ pnpm typecheck                         # TypeScript
 node scripts/test-real-provider.mjs    # 真实模型接入链路（本地假 SSE，无需 Key）
 node scripts/check-recipe.mjs --all    # 全部 13 个 recipe + 合成器验收（生成 → 语法 → 渲染 → 截图）
 node scripts/e2e-flows.mjs             # 端到端主流程（生成/迭代/回滚/分享/导出/刷新持久化）
+node scripts/verify-requirements.mjs   # 笔试四项需求覆盖验证（真实交互/持久化/主流程/延展）
 node scripts/shots.mjs                 # UI 截图回归（输出 shots/*.png）
 node scripts/qa-ui.mjs                 # 布局/对比度/移动端审计
 ```
 
 当前状态：`typecheck` ✅、`build` ✅、recipe 全量 14/14 PASS ✅、主流程 E2E 11/11 PASS ✅
-（含生成取消/重试）、真实模型两条协议链路 PASS ✅、桌面与 390px 移动端零横向溢出、控制台零报错 ✅。
+（含生成取消/重试）、**笔试四项需求覆盖 4/4 PASS** ✅、真实模型两条协议链路 PASS ✅、
+桌面与 390px 移动端零横向溢出、控制台零报错 ✅。
 
 > 完整的按维度自检与剩余优化优先级见 [`docs/自检与优化清单.md`](docs/自检与优化清单.md)。
 
