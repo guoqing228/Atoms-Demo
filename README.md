@@ -20,8 +20,10 @@ VibeForge 复刻的是「AI Agent 驱动生成应用」的核心体验：
 ## 快速开始
 
 ```bash
-pnpm install
+# 需要 Node 22+ / pnpm 10+
+pnpm install      # 本目录自带 pnpm-workspace.yaml + pnpm-lock.yaml，完全自包含
 pnpm dev          # http://localhost:4311
+pnpm build        # 生产构建（Vercel 可直接使用）
 ```
 
 > 默认使用内置 **Mock Agent**（确定性生成器，无需 API Key，秒级返回）。
@@ -90,9 +92,35 @@ src/
     db.ts                    # Dexie schema
 scripts/
   check-recipe.mjs           # 单个 recipe 的自动化验收（生成 → 语法 → 渲染 → 截图）
+  e2e-flows.mjs              # 端到端主流程测试
   test-real-provider.mjs     # 用本地假 SSE 服务验证真实模型接入链路
-  shots.mjs                  # 截图回归
+  qa-ui.mjs                  # 布局 / 对比度 / 移动端审计
+  shots.mjs                  # UI 截图回归（输出到 shots/）
+docs/
+  recipe-spec.md             # recipe 契约与设计规范（队友/协作者必读）
+  笔试说明.md                # 笔试提交用说明文档（实现思路 / 完成度 / 扩展优先级）
+  source/                    # 笔试题原始文档与导入文本
+shots/                       # 截图产物（工作台各状态 + 13 个生成应用）
 ```
+
+## 部署（Vercel）
+
+项目无服务端数据库、无外部依赖，`pnpm build` 已通过，可直接部署：
+
+```bash
+pnpm dlx vercel deploy --prod        # 首次会提示登录 / 关联项目
+# 或：在 Vercel 控制台 Import 本目录（Framework: Next.js，Build: pnpm build）
+```
+
+可选环境变量（不配则运行内置 Mock Agent）：
+
+| 变量 | 说明 |
+| --- | --- |
+| `DEFAULT_PROVIDER` | `mock`（默认）/ `openai` / `anthropic` |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` / `OPENAI_MODEL` | 服务端默认模型 |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_BASE_URL` / `ANTHROPIC_MODEL` | 服务端默认模型 |
+
+> 也可以让访问者自带 Key（设置面板），Key 只存访问者本地、随请求发给同源代理，不写入代码与分享链接。
 
 ## 测试
 
