@@ -295,11 +295,17 @@ async function* openaiStream(
   // Reasoning-model endpoints are picky: some reject `temperature`, others
   // don't know `response_format`, others cap `max_tokens`. Try the richest
   // request first and degrade parameter by parameter.
-  const attempts: { jsonMode: boolean; maxTokens: number }[] = [
-    { jsonMode: true, maxTokens: 32000 },
-    { jsonMode: false, maxTokens: 32000 },
-    { jsonMode: false, maxTokens: 16000 },
-    { jsonMode: false, maxTokens: 8000 },
+  //
+  // DashScope (百炼) reasoning models (e.g. kimi-k3) spend minutes "thinking"
+  // before emitting content; `enable_thinking: false` turns that off and is
+  // supported by its compatible-mode API.
+  const isDashScope = /dashscope\.aliyuncs\.com/.test(base);
+  const attempts: { jsonMode: boolean; maxTokens: number; thinkingOff: boolean }[] = [
+    ...(isDashScope ? [{ jsonMode: true, maxTokens: 32000, thinkingOff: true }] : []),
+    { jsonMode: true, maxTokens: 32000, thinkingOff: false },
+    { jsonMode: false, maxTokens: 32000, thinkingOff: false },
+    { jsonMode: false, maxTokens: 16000, thinkingOff: false },
+    { jsonMode: false, maxTokens: 8000, thinkingOff: false },
   ];
 
   let res: Response | null = null;
@@ -317,6 +323,7 @@ async function* openaiStream(
         max_tokens: attempt.maxTokens,
         messages,
         ...(attempt.jsonMode ? { response_format: { type: "json_object" } } : {}),
+        ...(attempt.thinkingOff ? { enable_thinking: false } : {}),
       }),
       signal: AbortSignal.timeout(300_000),
     });
@@ -326,7 +333,9 @@ async function* openaiStream(
     lastError = `模型接口返回 ${res.status}：${text.slice(0, 240)}`;
     const retryable =
       (res.status === 400 || res.status === 422) &&
-      /response_format|json_object|max_tokens|temperature|unsupported|invalid_parameter|not supported/i.test(text);
+      /response_format|json_object|max_tokens|temperature|enable_thinking|thinking|unsupported|invalid_parameter|not supported/i.test(
+        text,
+      );
     if (!retryable) break;
   }
 

@@ -1,4 +1,4 @@
-# dependencies
+﻿# dependencies
 node_modules/
 .pnpm-store/
 
@@ -21,3 +21,14 @@ Thumbs.db
 .idea/
 .vscode/
 *.log
+
+# local verification artifacts
+.probe-*.mjs
+shots/.probe/
+shots/.debug/
+shots/real-run.ndjson
+
+
+# local-only exam docs (not published)
+/docs/
+

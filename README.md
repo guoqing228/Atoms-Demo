@@ -6,6 +6,8 @@
 
 ![workspace](shots/01-home.png)
 
+![demo](shots/demo.gif)
+
 ## 这是什么
 
 VibeForge 复刻的是「AI Agent 驱动生成应用」的核心体验：
@@ -61,7 +63,21 @@ prompt ──► router（关键词路由）
 
 - **recipe**：待办、看板、Markdown 笔记、番茄钟、记账、习惯打卡、答题、2048、数据看板、落地页、AI 聊天、计算器、音乐播放器；
 - **synthesizer**：书单、追剧、菜谱、健身、旅行、客户、库存、课程、灵感、联系人…… 任意「XX 管理」需求；
-- Mock 生成器是**确定性**的：同一 prompt 永远得到同一结果，便于测试；真实模型只替换 provider 层。
+- **Mock generation 是确定性的**：同一 prompt 永远得到同一结果，便于测试；真实模型只替换 provider 层。
+
+### 真实模型实测（百炼 · kimi-k3）
+
+用 Bailian DashScope compatible-mode 的 `kimi-k3` 跑了一次完整链路（Key 只放本地 `.env.local`）：
+
+| 指标 | 结果 |
+| --- | --- |
+| 生成耗时 | 213s（推理模型；已自动加 `enable_thinking:false` 关闭思维链、推送心跳日志、可随时取消） |
+| 输出 | 3 文件 / 29.8 KB：`index.html` 117 行、`styles.css` 410 行、`app.js` 511 行 |
+| 结构自检 | HTML 结构 / 样式脚本挂载 / 经典脚本 / `localStorage` 全部通过 |
+| 渲染验证 | 0 运行时错误、0 横向溢出（桌面+390px）、文本对比度 14.7:1、21 个可交互元素 |
+| 截图 | `shots/real-kimi-app.png` |
+
+复跑：填好 `.env.local` 后，`node scripts/validate-real-app.mjs` 可校验 `shots/real-run.ndjson` 里最后一次真实生成结果。
 
 ## 技术栈与取舍
 
@@ -154,9 +170,10 @@ node scripts/test-real-provider.mjs     # 真实模型接入链路（本地假 S
 node scripts/check-recipe.mjs --all     # 全部 13 个 recipe + 合成器验收（生成 → 语法 → 渲染 → 截图）
 node scripts/e2e-flows.mjs              # 端到端主流程（生成/迭代/回滚/分享/导出/刷新持久化）
 node scripts/verify-requirements.mjs    # 笔试四项需求覆盖验证（真实交互/持久化/主流程/延展）
-node scripts/check-mobile.mjs           # 移动端对话/预览切换 + 溢出检查
-node scripts/demo-gif.mjs               # 录制演示 GIF（shots/demo.gif）
-node scripts/qa-ui.mjs / shots.mjs      # 布局审计 / 截图回归
+node scripts/check-mobile.mjs            # 移动端对话/预览切换 + 溢出检查
+node scripts/demo-gif.mjs                # 录制演示 GIF（shots/demo.gif）
+node scripts/validate-real-app.mjs       # 渲染校验真实模型生成结果（需 shots/real-run.ndjson）
+node scripts/qa-ui.mjs / shots.mjs       # 布局审计 / 截图回归
 ```
 
 当前状态：`typecheck` ✅、`lint` 0 warning ✅、`build` ✅、单元测试 53/53 ✅、

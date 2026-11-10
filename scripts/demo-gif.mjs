@@ -203,14 +203,6 @@ function copyRGBA(src) {
   return new Uint8Array(src);
 }
 
-/** 解码 PNG 并缩放到目标尺寸。 */
-function decodeResize(buf, dw, dh) {
-  const png = PNG.sync.read(buf);
-  const src = copyRGBA(png.data);
-  if (png.width === dw && png.height === dh) return src;
-  return resizeRGBA(src, png.width, png.height, dw, dh);
-}
-
 /** 等比缩放后居中 letterbox（降级到 800×520 时保持画面不变形）。 */
 function resizeLetterbox(src, sw, sh, dw, dh) {
   const scale = Math.min(dw / sw, dh / sh);
@@ -379,11 +371,12 @@ async function recordAttempt(browser, attemptNo) {
   });
 
   const rec = new Recorder(page);
-  let interaction = { ok: false, note: "未执行" };
+  let interaction;
   // 各阶段的 DOM 证据：证明录到的是「真实流程」，不是静态图
   const evidence = { streaming: null, built: null, iframe: null, code: null, versions: null, preview: null };
 
   try {
+    interaction = { ok: false, note: "未执行" };
     log(`\n=== 第 ${attemptNo}/2 次录制尝试 ===`);
     log(`打开首页 ${BASE} …`);
     await page.goto(BASE, { waitUntil: "networkidle", timeout: 150_000 });
