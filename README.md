@@ -9,6 +9,8 @@
 > 📄 提交用简要说明（实现思路 / 完成度 / 扩展优先级）见 [`说明文档.md`](说明文档.md)。
 >
 > 📘 不会用？看 [`操作手册.md`](操作手册.md)（图文版，3 分钟上手：生成 → 试玩 → 迭代 → 分享）。
+>
+> 📝 笔试题：[https://deepwisdom.feishu.cn/wiki/EHf8wgbtbibv8JkOkjNcXTD4nlg](https://deepwisdom.feishu.cn/wiki/EHf8wgbtbibv8JkOkjNcXTD4nlg)
 
 ![workspace](shots/01-home.png)
 
