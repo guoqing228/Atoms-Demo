@@ -5,9 +5,10 @@ import { realGenerate } from "@/lib/agent/real";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-// real models (especially reasoning models) can take minutes; Vercel allows up
-// to 300s on Hobby/Pro for streaming functions.
-export const maxDuration = 300;
+// Function duration. Vercel Hobby caps this at 60s; the default Mock Agent
+// finishes in ~5s so the free plan works out of the box. Long real-model
+// generations (e.g. kimi-k3 ~3.5min) need Pro (raise to 300) or local hosting.
+export const maxDuration = 60;
 
 const encoder = new TextEncoder();
 
