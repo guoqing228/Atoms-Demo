@@ -4,6 +4,8 @@
 >
 > 一个 Atoms 风格的 **AI 原生应用生成器**：自然语言 → 可运行、可交互、可回滚的网页应用。
 >
+> 🌐 **在线体验**：https://vibeforge-interview-demo.netlify.app （静态部署，Mock Agent 在浏览器内运行，无需登录/无需 Key）
+>
 > 📄 提交用简要说明（实现思路 / 完成度 / 扩展优先级）见 [`说明文档.md`](说明文档.md)。
 
 ![workspace](shots/01-home.png)
@@ -155,6 +157,22 @@ pnpm start:lan
 
 > 注意：链接只在两个进程运行期间有效，关机/关闭终端即失效；重启后地址会变。
 > 验证线上可用性：`BASE_URL=https://xxx.trycloudflare.com node scripts/verify-public.mjs`。
+
+### 静态部署（Netlify / GitHub Pages 等，国内可直连）
+
+`vercel.app` / `pages.dev` 在部分网络不可达，静态托管是更稳的方案（当前线上链接即用此方式）：
+
+```powershell
+pnpm build:static        # 静态导出到 out/（约 1.7MB），Mock Agent 改为浏览器内运行
+# Netlify 直接上传静态产物（无需构建插件，避开 Windows 本地 symlink 限制）
+pnpm --package=netlify-cli@latest dlx netlify deploy --dir=out --prod --site <site-id>
+```
+
+- 静态模式没有 `/api/generate`，默认 Mock Agent 完全在浏览器内生成；真实模型 BYOK 受浏览器 CORS 限制，
+  完整真实模型能力请用本地/服务端模式（`pnpm dev` / `pnpm start`）。
+- `netlify.toml` 已声明 `command = "node scripts/build-static.mjs"`、`publish = "out"`，
+  连接 Git 后 Netlify 在 Linux 构建机上也能直接出静态产物。
+- 若站点被 Netlify 的 Team protection 拦截（HTTP 401），在站点设置里关闭 SSO 保护即可。
 
 可选环境变量（不配则运行内置 Mock Agent）：
 

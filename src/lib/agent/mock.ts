@@ -23,7 +23,9 @@ import { sleep } from "./provider";
  */
 
 const SPEED = (() => {
-  const raw = Number.parseFloat(process.env.MOCK_SPEED || "1");
+  // `process` is undefined when this module runs in the browser (static export)
+  const env = typeof process !== "undefined" ? process.env : undefined;
+  const raw = Number.parseFloat(env?.MOCK_SPEED || "1");
   return Number.isFinite(raw) && raw >= 0 ? raw : 1;
 })();
 

@@ -34,3 +34,8 @@ tunnel.log
 
 # local tunnel binaries
 .tools/
+/out/
+.static-build/
+static-build.log
+netlify-deploy.log
+netlify-site-id.txt
