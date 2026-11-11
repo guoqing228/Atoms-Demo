@@ -5,8 +5,10 @@
   "description": "VibeForge — AI-native app builder demo: describe an app, watch an agent build it, run it live.",
   "scripts": {
     "dev": "next dev -p 4311",
+    "dev:lan": "next dev -H 0.0.0.0 -p 4311",
     "build": "next build",
     "start": "next start -p 4311",
+    "start:lan": "next start -H 0.0.0.0 -p 4311",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src scripts",
     "test": "vitest run",
