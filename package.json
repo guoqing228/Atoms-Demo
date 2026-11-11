@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "description": "VibeForge — AI-native app builder demo: describe an app, watch an agent build it, run it live.",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev -p 4311",
     "dev:lan": "next dev -H 0.0.0.0 -p 4311",
