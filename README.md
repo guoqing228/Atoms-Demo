@@ -139,6 +139,23 @@ pnpm dlx vercel deploy --prod        # 首次会提示登录 / 关联项目
 # 或：在 Vercel 控制台 Import 本目录（Framework: Next.js，Build: pnpm build）
 ```
 
+### 临时公网链接（无需任何账号，cloudflared 快速隧道）
+
+适合「评委临时点开看」或没有 Vercel 账号时：
+
+```powershell
+# 终端 1：生产模式跑在 0.0.0.0（同事/同网设备可访问 http://<本机IP>:4311）
+pnpm build
+pnpm start:lan
+
+# 终端 2：把本地 4311 暴露到公网（cloudflared 放在 .tools\，不入库）
+.\.tools\cloudflared.exe tunnel --url http://localhost:4311 --no-autoupdate
+# 输出形如 https://xxx.trycloudflare.com 的公网地址
+```
+
+> 注意：链接只在两个进程运行期间有效，关机/关闭终端即失效；重启后地址会变。
+> 验证线上可用性：`BASE_URL=https://xxx.trycloudflare.com node scripts/verify-public.mjs`。
+
 可选环境变量（不配则运行内置 Mock Agent）：
 
 | 变量 | 说明 |

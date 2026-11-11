@@ -1,4 +1,4 @@
-﻿# dependencies
+# dependencies
 node_modules/
 .pnpm-store/
 
@@ -22,17 +22,15 @@ Thumbs.db
 .vscode/
 *.log
 
+# local-only exam docs (not published)
+/docs/
+
 # local verification artifacts
 .probe-*.mjs
 shots/.probe/
 shots/.debug/
 shots/real-run.ndjson
-
-
-# local-only exam docs (not published)
-/docs/
-
+tunnel.log
 
 # local tunnel binaries
 .tools/
-

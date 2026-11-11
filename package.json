@@ -2,7 +2,7 @@
   "name": "vibeforge",
   "version": "0.1.0",
   "private": true,
-  "description": "VibeForge — AI-native app builder demo: describe an app, watch an agent build it, run it live.",
+  "description": "VibeForge 鈥?AI-native app builder demo: describe an app, watch an agent build it, run it live.",
   "engines": {
     "node": ">=22"
   },
@@ -22,7 +22,8 @@
     "test:mobile": "node scripts/check-mobile.mjs",
     "shots": "node scripts/shots.mjs",
     "demo:gif": "node scripts/demo-gif.mjs",
-    "validate:real": "node scripts/validate-real-app.mjs"
+    "validate:real": "node scripts/validate-real-app.mjs",
+    "verify:public": "node scripts/verify-public.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.3.1",
