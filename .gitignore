@@ -39,3 +39,6 @@ tunnel.log
 static-build.log
 netlify-deploy.log
 netlify-site-id.txt
+.netlify-bundle/
+.netlify/
+probe-job.txt

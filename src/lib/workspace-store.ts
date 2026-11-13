@@ -24,6 +24,8 @@ export interface PersistGenerationInput {
   activeProject: Project | null;
   /** 1-based version number for the snapshot label */
   versionNumber: number;
+  /** account that owns the project (for per-account project lists) */
+  ownerEmail?: string;
 }
 
 export interface PersistGenerationOutput {
@@ -82,6 +84,7 @@ export async function persistGeneration(
           entry: app.entry,
           files: app.files,
           provider: done.provider,
+          owner: input.ownerEmail,
           createdAt: now,
           updatedAt: now,
         }

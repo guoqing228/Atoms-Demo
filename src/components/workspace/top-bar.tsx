@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { Download, HelpCircle, Settings2, Share2 } from "lucide-react";
+import { Download, HelpCircle, LogOut, Settings2, Share2 } from "lucide-react";
 import { Logo, LogoMark } from "@/components/ui/logo";
 import { Button } from "@/components/ui/button";
 import { Tip } from "@/components/ui/tooltip";
@@ -23,6 +23,8 @@ export function TopBar({
   projectName,
   status,
   hasProject,
+  userEmail,
+  onLogout,
   onShare,
   onExport,
   onSettings,
@@ -31,6 +33,8 @@ export function TopBar({
   projectName?: string | null;
   status: RunStatus;
   hasProject: boolean;
+  userEmail?: string | null;
+  onLogout?: () => void;
   onShare: () => void;
   onExport: () => void;
   onSettings: () => void;
@@ -97,11 +101,29 @@ export function TopBar({
           </Button>
         </Tip>
         <div className="mx-1.5 h-4 w-px bg-ink/10" />
-        <Tip label="本地工作区 · 无需登录">
-          <div className="grid size-7 place-items-center rounded-full border border-line-strong bg-gradient-to-br from-ink/[0.14] to-ink/[0.03]">
-            <LogoMark size={15} className="text-ink/80" />
+        {userEmail ? (
+          <div className="flex items-center gap-1">
+            <Tip label={`已登录：${userEmail}`}>
+              <div className="hidden max-w-[160px] items-center gap-1.5 rounded-full border border-line-strong bg-ink/[0.03] px-2.5 py-1 sm:flex">
+                <span className="size-1.5 rounded-full bg-ok" />
+                <span className="truncate font-mono text-[10.5px] text-dim">{userEmail}</span>
+              </div>
+            </Tip>
+            {onLogout ? (
+              <Tip label="退出登录">
+                <Button variant="ghost" size="icon" onClick={onLogout} aria-label="退出登录">
+                  <LogOut size={15} />
+                </Button>
+              </Tip>
+            ) : null}
           </div>
-        </Tip>
+        ) : (
+          <Tip label="本地工作区">
+            <div className="grid size-7 place-items-center rounded-full border border-line-strong bg-gradient-to-br from-ink/[0.14] to-ink/[0.03]">
+              <LogoMark size={15} className="text-ink/80" />
+            </div>
+          </Tip>
+        )}
       </div>
     </header>
   );

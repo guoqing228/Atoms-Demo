@@ -116,6 +116,14 @@ function featureNames(plan: AppPlan): string[] {
   return plan.features.map((f) => f.title);
 }
 
+/** 从修改指令里提取「把标题/名字改成 X」。 */
+function extractTitleChange(prompt: string): string | null {
+  const match = /(?:标题|名字|名称|应用名)[^，。；\n]{0,8}(?:改成|改为|叫|换成)[「"'“]?([^」"'”，。；\n]{1,20})/.exec(
+    prompt,
+  );
+  return match ? match[1].trim() : null;
+}
+
 /* ------------------------------------------------------------------ */
 /*  The stream                                                         */
 /* ------------------------------------------------------------------ */
@@ -179,6 +187,21 @@ export async function* mockGenerate(req: GenerateRequest): AsyncGenerator<AgentE
   } catch (err) {
     yield { type: "error", message: `生成失败：${err instanceof Error ? err.message : String(err)}` };
     return;
+  }
+
+  // 二轮修改里「把标题改成 X」这类要求：同步改计划名 + 页面里的旧名称，
+  // 否则 Mock 重建会看起来「改了但没变」。
+  const titleOverride = extractTitleChange(req.prompt);
+  if (titleOverride) {
+    const oldName = app.plan.name;
+    app = {
+      ...app,
+      plan: { ...app.plan, name: titleOverride },
+      files: Object.fromEntries(
+        Object.entries(app.files).map(([path, content]) => [path, content.split(oldName).join(titleOverride)]),
+      ),
+    };
+    yield { type: "log", text: `按修改意见更新应用名：「${oldName}」→「${titleOverride}」` };
   }
 
   const detected = featureNames(app.plan);

@@ -99,6 +99,8 @@ export interface Project {
   entry: string;
   files: FileMap;
   provider: string;
+  /** account that owns this project (undefined for pre-auth local projects) */
+  owner?: string;
   createdAt: number;
   updatedAt: number;
 }

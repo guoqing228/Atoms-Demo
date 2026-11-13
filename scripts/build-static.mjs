@@ -37,7 +37,11 @@ try {
     env: {
       ...process.env,
       STATIC_EXPORT: "1",
-      NEXT_PUBLIC_LOCAL_AGENT: "1",
+      // generation goes through the Netlify functions backend (real model);
+      // set STATIC_LOCAL_AGENT=1 to fall back to the in-browser Mock Agent
+      ...(process.env.STATIC_LOCAL_AGENT === "1"
+        ? { NEXT_PUBLIC_LOCAL_AGENT: "1" }
+        : { NEXT_PUBLIC_REMOTE_AGENT: "1" }),
     },
   });
 

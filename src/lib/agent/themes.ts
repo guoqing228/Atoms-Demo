@@ -1,4 +1,4 @@
-import type { Theme } from "@/lib/types";
+﻿import type { Theme } from "@/lib/types";
 
 /**
  * Deterministic palette engine.
@@ -70,7 +70,7 @@ export const PALETTES: Palette[] = [
     border: "rgba(31,42,34,0.1)",
     font: "sans",
     radius: 12,
-    keywords: ["绿色", "环保", "健康", "运动", "健身", "habit", "习惯", "锻炼", "forest", "green", "番茄", "专注"],
+    keywords: ["绿色", "环保", "健康", "运动", "健身", "habit", "习惯", "锻炼", "forest", "green", "番茄", "专注", "绿", "翠"],
   },
   {
     name: "落日暖橙",
@@ -84,7 +84,7 @@ export const PALETTES: Palette[] = [
     border: "rgba(42,33,26,0.1)",
     font: "sans",
     radius: 10,
-    keywords: ["橙", "日落", "sunset", "活力", "energetic", "旅行", "美食", "菜谱", "food", "记账", "预算"],
+    keywords: ["橙", "日落", "sunset", "活力", "energetic", "旅行", "美食", "菜谱", "food", "记账", "预算", "暖"],
   },
   {
     name: "糖果缤纷",
@@ -112,7 +112,7 @@ export const PALETTES: Palette[] = [
     border: "rgba(255,255,255,0.09)",
     font: "sans",
     radius: 12,
-    keywords: ["深色", "暗黑", "夜间", "dark", "night", "科技", "终端", "黑客", "matrix"],
+    keywords: ["深色", "暗黑", "夜间", "dark", "night", "科技", "终端", "黑客", "matrix", "黑", "暗"],
   },
   {
     name: "午夜霓虹",

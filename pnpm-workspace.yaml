@@ -1,7 +1,9 @@
-# Makes this directory its own pnpm workspace root so installs never leak into
+﻿# Makes this directory its own pnpm workspace root so installs never leak into
 # a parent directory (the project must stay self-contained).
 packages:
   - "."
+allowBuilds:
+  esbuild: true
 minimumReleaseAgeExclude:
   - '@next/env@16.4.6'
   - '@next/swc-darwin-arm64@16.4.6'

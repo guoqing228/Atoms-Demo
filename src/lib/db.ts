@@ -4,16 +4,23 @@ import type { ChatMessage, Project, Version } from "./types";
 /**
  * Local-first persistence.
  *
- * Everything the user creates lives in IndexedDB: no account, no backend
- * database, no data leaving the browser. That keeps the demo deployable on
- * any static/serverless host and makes "persistence" a property of the
- * product rather than of an infrastructure account.
+ * Project data lives in IndexedDB. Accounts are normally handled server-side
+ * (Netlify Blobs); the `users` table is only a fallback for local development
+ * where the serverless functions are not running.
  */
+export interface LocalUser {
+  email: string;
+  salt: string;
+  hash: string;
+  createdAt: number;
+}
+
 class VibeForgeDB extends Dexie {
   projects!: Table<Project, string>;
   messages!: Table<ChatMessage, string>;
   versions!: Table<Version, string>;
   settings!: Table<{ key: string; value: unknown }, string>;
+  users!: Table<LocalUser, string>;
 
   constructor() {
     super("vibeforge");
@@ -22,6 +29,9 @@ class VibeForgeDB extends Dexie {
       messages: "id, projectId, createdAt",
       versions: "id, projectId, [projectId+createdAt]",
       settings: "key",
+    });
+    this.version(2).stores({
+      users: "email, createdAt",
     });
   }
 }

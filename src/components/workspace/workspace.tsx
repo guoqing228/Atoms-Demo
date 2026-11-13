@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import { toast, Toaster } from "sonner";
@@ -19,10 +19,14 @@ import { PreviewPanel } from "./preview";
 import { AboutDialog, DEFAULT_LLM, SettingsDialog, ShareDialog, type LLMSettings } from "./dialogs";
 import type { PreviewSignal } from "./preview-frame";
 import type { PreviewTab, RunView } from "./types";
+import { AuthGate } from "@/components/auth/auth-gate";
+import { logout, restoreSession, type Session } from "@/lib/auth";
 
 const SETTINGS_KEY = "vibeforge:llm";
 
 export function Workspace() {
+  const [session, setSession] = React.useState<Session | null>(null);
+  const [authReady, setAuthReady] = React.useState(false);
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
@@ -42,7 +46,6 @@ export function Workspace() {
   const [shareBytes, setShareBytes] = React.useState(0);
   const [shareRawBytes, setShareRawBytes] = React.useState(0);
   const [booted, setBooted] = React.useState(false);
-  const bootRef = React.useRef(false);
   const abortRef = React.useRef<AbortController | null>(null);
 
   const activeProject = React.useMemo(
@@ -67,10 +70,10 @@ export function Workspace() {
     }
   }, [run?.status]);
 
-  const refreshProjects = React.useCallback(async () => {
+  const refreshProjects = React.useCallback(async (ownerEmail?: string) => {
     try {
       const rows = await getDB().projects.orderBy("updatedAt").reverse().toArray();
-      setProjects(rows);
+      setProjects(ownerEmail ? rows.filter((project) => project.owner === ownerEmail) : []);
     } catch (err) {
       console.error(err);
       toast.error("读取本地项目失败，浏览器可能禁用了 IndexedDB");
@@ -78,11 +81,29 @@ export function Workspace() {
   }, []);
 
   /* ---------------------------------------------------------------- */
-  /*  Boot: settings, projects, share-link import                      */
+  /*  Auth: restore session, then boot the workspace for that account  */
   /* ---------------------------------------------------------------- */
   React.useEffect(() => {
-    if (bootRef.current) return;
-    bootRef.current = true;
+    let alive = true;
+    void restoreSession().then((restored) => {
+      if (!alive) return;
+      setSession(restored);
+      setAuthReady(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  /* ---------------------------------------------------------------- */
+  /*  Boot: settings, projects, share-link import                      */
+  /* ---------------------------------------------------------------- */
+  const bootedEmailRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (!authReady) return;
+    const email = session?.email ?? null;
+    if (bootedEmailRef.current === email) return;
+    bootedEmailRef.current = email;
     try {
       const saved = localStorage.getItem(SETTINGS_KEY);
       if (saved) setLlm({ ...DEFAULT_LLM, ...(JSON.parse(saved) as LLMSettings) });
@@ -91,7 +112,7 @@ export function Workspace() {
     }
 
     const boot = async () => {
-      await refreshProjects();
+      await refreshProjects(session?.email);
       const hash = window.location.hash;
       const match = /share=([^&]+)/.exec(hash);
       if (match) {
@@ -107,6 +128,7 @@ export function Workspace() {
             entry: payload.entry,
             files: payload.files,
             provider: "share",
+            owner: session?.email,
             createdAt: Date.now(),
             updatedAt: Date.now(),
           };
@@ -132,7 +154,7 @@ export function Workspace() {
     };
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [authReady, session?.email, refreshProjects]);
 
   /* ---------------------------------------------------------------- */
   /*  Generation                                                       */
@@ -155,6 +177,7 @@ export function Workspace() {
         done: event,
         activeProject,
         versionNumber: mode === "create" || !activeProject ? 1 : versions.length + 1,
+        ownerEmail: session?.email,
       });
       setProjects((prev) => [result.project, ...prev.filter((p) => p.id !== result.project.id)]);
       if (mode === "create" || !activeProject) {
@@ -166,7 +189,7 @@ export function Workspace() {
         setVersions((prev) => [result.version, ...prev]);
       }
     },
-    [activeProject, versions.length],
+    [activeProject, versions.length, session?.email],
   );
 
   const generate = React.useCallback(
@@ -453,6 +476,33 @@ export function Workspace() {
       ? "ready"
       : "idle";
 
+  const handleLogout = React.useCallback(async () => {
+    await logout(session);
+    setSession(null);
+    setProjects([]);
+    setActiveId(null);
+    setMessages([]);
+    setVersions([]);
+    setRun(null);
+    setBooted(false);
+    toast.success("已退出登录");
+  }, [session]);
+
+  if (!authReady) {
+    return (
+      <div className="grid h-dvh place-items-center bg-bg">
+        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-[0.2em] text-faint">
+          <span className="size-1.5 animate-pulse rounded-full bg-lime" />
+          loading account
+        </div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <AuthGate onAuthed={(restored) => setSession(restored)} />;
+  }
+
   if (!booted) {
     return (
       <div className="grid h-dvh place-items-center bg-bg">
@@ -470,6 +520,8 @@ export function Workspace() {
         projectName={plan?.name ?? activeProject?.name ?? null}
         status={status}
         hasProject={Boolean(files["index.html"])}
+        userEmail={session.email}
+        onLogout={() => void handleLogout()}
         onShare={openShare}
         onExport={exportHtml}
         onSettings={() => setSettingsOpen(true)}

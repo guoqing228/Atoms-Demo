@@ -1,4 +1,4 @@
-import type { Recipe } from "./_kit";
+﻿import type { Recipe } from "./_kit";
 import { todoRecipe } from "./todo";
 import { kanbanRecipe } from "./kanban";
 import { notesRecipe } from "./notes";
@@ -12,6 +12,7 @@ import { landingRecipe } from "./landing";
 import { chatRecipe } from "./chat";
 import { calculatorRecipe } from "./calculator";
 import { musicRecipe } from "./music";
+import { bookingRecipe } from "./booking";
 
 /**
  * Registration order matters only for tie-breaking: earlier recipes win when
@@ -31,6 +32,7 @@ export const RECIPES: Recipe[] = [
   chatRecipe,
   calculatorRecipe,
   musicRecipe,
+  bookingRecipe,
 ];
 
 export function recipeById(id: string): Recipe | undefined {

@@ -43,18 +43,19 @@ pnpm build        # 生产构建（Vercel 可直接使用）
 
 | 能力 | 说明 |
 | --- | --- |
+| **账号体系** | 注册 / 登录 / 退出、PBKDF2 加盐密码哈希、服务端会话（Netlify Blobs）；项目按账号隔离，未登录不可进入工作台 |
 | 流式生成 | NDJSON 流式接口，逐帧渲染「思考 / 计划 / 写文件 / 自检」 |
 | 实时预览 | 多文件项目内联成单文档，注入运行时桥后在沙箱 iframe 运行 |
-| 多轮迭代 | 继续对话即可修改；Mock 模式下按「原始需求 + 追加要求」重新生成 |
-| 版本时间线 | 每次生成自动快照，可回滚到任意历史版本 |
+| 多轮迭代 | 继续对话即可修改；真实模型会带当前文件上下文整体重写，Mock 模式会响应改名/换主题等显式指令 |
+| 版本时间线 | 每次生成自动快照，可回滚到任意历史版本，可**逐行 diff 对比**当前版本 |
 | 分享链接 | 整个应用压缩编码进 URL hash，打开即运行，无需服务器 |
 | 导出 | 单文件 HTML / 项目 JSON |
 | 运行时控制台 | 捕获生成应用的 `console` 与未捕获错误，便于定位问题 |
 | 本地持久化 | 项目 / 会话 / 版本存 IndexedDB，刷新不丢 |
-| 版本时间线 | 每次生成自动快照，可回滚，可**逐行 diff 对比**当前版本 |
 | 设备预览 | 桌面 / 平板 / 手机三种视口；移动端「对话 / 预览」切换 |
 | 生成控制 | 可随时**停止**生成；失败可**重试这一步** |
-| 真实模型 | OpenAI 兼容（含百炼 kimi-k3 等推理模型）/ Anthropic，**结构化 JSON 输出** |
+| **真实 Agent** | 服务端调用真实大模型（OpenAI 兼容 / 百炼 kimi-k3 / Anthropic），结构化 JSON 输出；Netlify Background Function（15 分钟预算）+ 轮询进度；模型不可用时自动降级到内置生成器 |
+| **领域生成** | 关键词命中领域配方（如「会议室预约」→ 时间段 + 冲突校验），而非通用条目库 |
 
 ## 生成内核
 
@@ -162,20 +163,28 @@ pnpm start:lan
 > 注意：链接只在两个进程运行期间有效，关机/关闭终端即失效；重启后地址会变。
 > 验证线上可用性：`BASE_URL=https://xxx.trycloudflare.com node scripts/verify-public.mjs`。
 
-### 静态部署（Netlify / GitHub Pages 等，国内可直连）
+### 静态部署 + 服务端函数（Netlify，当前线上方式）
 
-`vercel.app` / `pages.dev` 在部分网络不可达，静态托管是更稳的方案（当前线上链接即用此方式）：
+`vercel.app` / `pages.dev` 在部分网络不可达，Netlify 静态托管 + Background Functions 是更稳的方案：
 
 ```powershell
-pnpm build:static        # 静态导出到 out/（约 1.7MB），Mock Agent 改为浏览器内运行
-# Netlify 直接上传静态产物（无需构建插件，避开 Windows 本地 symlink 限制）
-pnpm --package=netlify-cli@latest dlx netlify deploy --dir=out --prod --site <site-id>
+pnpm build:static        # 静态导出到 out/（约 1.7MB）
+pnpm build:functions     # esbuild 打包 netlify/functions → .netlify-bundle/（依赖内联）
+pnpm --package=netlify-cli@latest dlx netlify deploy --dir=out --functions=.netlify-bundle --prod --site <site-id>
 ```
 
-- 静态模式没有 `/api/generate`，默认 Mock Agent 完全在浏览器内生成；真实模型 BYOK 受浏览器 CORS 限制，
-  完整真实模型能力请用本地/服务端模式（`pnpm dev` / `pnpm start`）。
-- `netlify.toml` 已声明 `command = "node scripts/build-static.mjs"`、`publish = "out"`，
-  连接 Git 后 Netlify 在 Linux 构建机上也能直接出静态产物。
+- **账号**：`/.netlify/functions/auth`（注册/登录/登出，Netlify Blobs 存储，PBKDF2 哈希）
+- **真实模型**：`/.netlify/functions/generate-background`（Background Function，15 分钟预算）调用服务端
+  `OPENAI_*` 配置的模型，进度写入 Blobs，前端 `/.netlify/functions/poll` 轮询并逐帧渲染；
+  模型不可用时前端自动降级为内置生成器。
+- 服务端环境变量（Netlify 项目设置 / `netlify env:set`）：
+
+| 变量 | 说明 |
+| --- | --- |
+| `OPENAI_API_KEY` | 服务端模型 Key（必填，模型才可用） |
+| `OPENAI_BASE_URL` | 兼容端点，如 `https://dashscope.aliyuncs.com/compatible-mode/v1` |
+| `OPENAI_MODEL` | 模型名，如 `kimi-k3` |
+
 - 若站点被 Netlify 的 Team protection 拦截（HTTP 401），在站点设置里关闭 SSO 保护即可。
 
 可选环境变量（不配则运行内置 Mock Agent）：
