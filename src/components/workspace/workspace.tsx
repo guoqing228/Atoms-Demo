@@ -570,7 +570,7 @@ export function Workspace() {
 
               <div
                 className={cn(
-                  "min-h-0 min-w-0 flex-col md:flex md:w-[420px] md:shrink-0",
+                  "h-full min-h-0 min-w-0 flex-col md:flex md:w-[420px] md:shrink-0",
                   mobilePane === "chat" ? "flex flex-1" : "hidden",
                 )}
               >
@@ -592,7 +592,7 @@ export function Workspace() {
 
               <div
                 className={cn(
-                  "min-h-0 min-w-0 flex-col md:flex md:flex-1",
+                  "h-full min-h-0 min-w-0 flex-col md:flex md:flex-1",
                   mobilePane === "preview" ? "flex flex-1" : "hidden",
                 )}
               >

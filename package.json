@@ -25,7 +25,9 @@
     "validate:real": "node scripts/validate-real-app.mjs",
     "verify:public": "node scripts/verify-public.mjs",
     "build:static": "node scripts/build-static.mjs",
-    "build:functions": "node scripts/bundle-functions.mjs"
+    "build:functions": "node scripts/bundle-functions.mjs",
+    "test:scroll": "node scripts/verify-scroll-fixes.mjs",
+    "audit:scroll": "node scripts/audit-scroll.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.9",

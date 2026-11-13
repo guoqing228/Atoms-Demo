@@ -82,7 +82,7 @@ export function Chat({
   }, [itemCount, run?.logs.length, run?.files, run?.plan, run?.status]);
 
   return (
-    <section className="flex h-full w-full flex-col border-b border-line bg-panel md:h-auto md:border-b-0 md:border-r">
+    <section className="flex h-full min-h-0 w-full flex-col overflow-hidden border-b border-line bg-panel md:border-b-0 md:border-r">
       <div className="flex h-11 shrink-0 items-center justify-between border-b border-line px-3.5">
         <div className="flex min-w-0 items-center gap-2">
           <span className="font-mono text-[10.5px] uppercase tracking-[0.18em] text-faint">
