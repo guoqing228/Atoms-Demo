@@ -122,11 +122,12 @@ export function buildUserMessage(req) {
 /* ------------------------------------------------------------------ */
 /*  Model call (OpenAI-compatible, DashScope compatible)               */
 /* ------------------------------------------------------------------ */
-export async function callModel(messages, onHeartbeat, signalTimeoutMs = 840000) {
+export async function callModel(messages, onHeartbeat, options = {}) {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("服务端未配置 OPENAI_API_KEY，无法调用真实模型");
   const baseURL = (process.env.OPENAI_BASE_URL || "https://dashscope.aliyuncs.com/compatible-mode/v1").replace(/\/+$/, "");
-  const model = process.env.OPENAI_MODEL || "kimi-k3";
+  const model = options.model || process.env.OPENAI_MODEL || "qwen3.8-max-0902";
+  const timeoutMs = options.timeoutMs || 840000;
 
   const isDashScope = /dashscope\.aliyuncs\.com/.test(baseURL);
   const res = await fetch(`${baseURL}/chat/completions`, {
@@ -140,7 +141,7 @@ export async function callModel(messages, onHeartbeat, signalTimeoutMs = 840000)
       response_format: { type: "json_object" },
       ...(isDashScope ? { enable_thinking: false } : {}),
     }),
-    signal: AbortSignal.timeout(signalTimeoutMs),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   if (!res.ok || !res.body) {
     throw new Error(`模型接口返回 ${res.status}：${(await res.text()).slice(0, 300)}`);

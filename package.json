@@ -27,7 +27,8 @@
     "build:static": "node scripts/build-static.mjs",
     "build:functions": "node scripts/bundle-functions.mjs",
     "test:scroll": "node scripts/verify-scroll-fixes.mjs",
-    "audit:scroll": "node scripts/audit-scroll.mjs"
+    "audit:scroll": "node scripts/audit-scroll.mjs",
+    "test:real": "node scripts/verify-real-agent-online.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.9",

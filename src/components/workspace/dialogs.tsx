@@ -95,11 +95,19 @@ export interface LLMSettings {
   model: string;
 }
 
+/** true when the site is deployed with the server-side real-model backend */
+const REMOTE_ENGINE = process.env.NEXT_PUBLIC_REMOTE_AGENT === "1";
+
+const REMOTE_MODELS: { id: string; label: string; hint: string }[] = [
+  { id: "qwen3.8-max-0902", label: "qwen3.8-max-0902", hint: "效果更好，生成更慢（约 2 分钟）" },
+  { id: "qwen3.8-flash", label: "qwen3.8-flash", hint: "速度快（约 1–1.5 分钟），默认推荐" },
+];
+
 export const DEFAULT_LLM: LLMSettings = {
-  provider: "mock",
+  provider: REMOTE_ENGINE ? "openai" : "mock",
   apiKey: "",
   baseURL: "",
-  model: "",
+  model: REMOTE_ENGINE ? "qwen3.8-flash" : "",
 };
 
 const PROVIDERS: { id: LLMSettings["provider"]; label: string; hint: string }[] = [
@@ -160,35 +168,56 @@ export function SettingsDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         title="生成引擎"
-        description="默认使用内置 Mock Agent，生成的代码完全离线；也可以接入你自己的模型 Key（只保存在本地浏览器）。"
+        description={
+          REMOTE_ENGINE
+            ? "线上默认使用服务端真实模型（qwen3.8-max / qwen3.8-flash 可选）；也可以切换为内置生成器做秒级演示。"
+            : "默认使用内置 Mock Agent，生成的代码完全离线；也可以接入你自己的模型 Key（只保存在本地浏览器）。"
+        }
       >
         <div className="space-y-4 px-5 py-4">
-          <div>
-            <p className="mb-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint">
-              快速填充
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  onClick={() =>
-                    setDraft({
-                      ...draft,
-                      provider: preset.provider,
-                      baseURL: preset.baseURL,
-                      model: preset.model,
-                    })
-                  }
-                  className="rounded-full border border-white/[0.1] bg-white/[0.03] px-2.5 py-1 text-[11px] text-dim transition-colors hover:border-lime/35 hover:bg-lime/[0.06] hover:text-ink"
-                >
-                  {preset.label}
-                </button>
-              ))}
+          {!REMOTE_ENGINE ? (
+            <div>
+              <p className="mb-1.5 font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint">
+                快速填充
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESETS.map((preset) => (
+                  <button
+                    key={preset.label}
+                    onClick={() =>
+                      setDraft({
+                        ...draft,
+                        provider: preset.provider,
+                        baseURL: preset.baseURL,
+                        model: preset.model,
+                      })
+                    }
+                    className="rounded-full border border-white/[0.1] bg-white/[0.03] px-2.5 py-1 text-[11px] text-dim transition-colors hover:border-lime/35 hover:bg-lime/[0.06] hover:text-ink"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           <div className="space-y-1.5">
-            {PROVIDERS.map((provider) => {
+            {(REMOTE_ENGINE
+              ? PROVIDERS.filter((provider) => provider.id !== "anthropic").map((provider) =>
+                  provider.id === "mock"
+                    ? {
+                        ...provider,
+                        label: "内置生成器（本地预设）",
+                        hint: "秒级返回、不占用模型额度；内置 13 个应用配方 + 通用合成器",
+                      }
+                    : {
+                        ...provider,
+                        label: "真实模型（服务端）",
+                        hint: "服务端调用大模型、结构化 JSON 生成；模型可在下方切换",
+                      },
+                )
+              : PROVIDERS
+            ).map((provider) => {
               const active = draft.provider === provider.id;
               return (
                 <button
@@ -220,7 +249,42 @@ export function SettingsDialog({
             })}
           </div>
 
-          {draft.provider !== "mock" ? (
+          {REMOTE_ENGINE && draft.provider === "openai" ? (
+            <div className="space-y-2">
+              <p className="font-mono text-[10.5px] uppercase tracking-[0.12em] text-faint">模型</p>
+              {REMOTE_MODELS.map((model) => {
+                const active = (draft.model || REMOTE_MODELS[0].id) === model.id;
+                return (
+                  <button
+                    key={model.id}
+                    onClick={() => setDraft({ ...draft, model: model.id })}
+                    className={cn(
+                      "flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors",
+                      active ? "border-lime/35 bg-lime/[0.05]" : "border-line hover:bg-ink/[0.02]",
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "mt-0.5 grid size-3.5 shrink-0 place-items-center rounded-full border",
+                        active ? "border-lime bg-lime" : "border-ink/30",
+                      )}
+                    >
+                      {active ? <Check size={8} className="text-white" /> : null}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block font-mono text-[12px] text-ink">{model.label}</span>
+                      <span className="mt-0.5 block text-[11.5px] leading-snug text-faint">{model.hint}</span>
+                    </span>
+                  </button>
+                );
+              })}
+              <p className="text-[11.5px] leading-relaxed text-faint/70">
+                模型由服务端代理调用，浏览器不接触 API Key；生成的进度会通过轮询实时显示。
+              </p>
+            </div>
+          ) : null}
+
+          {!REMOTE_ENGINE && draft.provider !== "mock" ? (
             <div className="space-y-2.5">
               <Field
                 label="API Key"

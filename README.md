@@ -54,7 +54,7 @@ pnpm build        # 生产构建（Vercel 可直接使用）
 | 本地持久化 | 项目 / 会话 / 版本存 IndexedDB，刷新不丢 |
 | 设备预览 | 桌面 / 平板 / 手机三种视口；移动端「对话 / 预览」切换 |
 | 生成控制 | 可随时**停止**生成；失败可**重试这一步** |
-| **真实 Agent** | 服务端调用真实大模型（OpenAI 兼容 / 百炼 kimi-k3 / Anthropic），结构化 JSON 输出；Netlify Background Function（15 分钟预算）+ 轮询进度；模型不可用时自动降级到内置生成器 |
+| **真实 Agent** | 服务端调用真实大模型（OpenAI 兼容 / 百炼 qwen3.8-flash · qwen3.8-max-0902 / Anthropic），结构化 JSON 输出；Netlify Background Function（15 分钟预算）+ 轮询进度；模型不可用时自动降级到内置生成器 |
 | **领域生成** | 关键词命中领域配方（如「会议室预约」→ 时间段 + 冲突校验），而非通用条目库 |
 
 ## 生成内核
@@ -74,25 +74,28 @@ prompt ──► router（关键词路由）
 - **synthesizer**：书单、追剧、菜谱、健身、旅行、客户、库存、课程、灵感、联系人…… 任意「XX 管理」需求；
 - **Mock generation 是确定性的**：同一 prompt 永远得到同一结果，便于测试；真实模型只替换 provider 层。
 
-### 真实模型实测（百炼 · kimi-k3）
+### 真实 Agent 实测（百炼 · qwen3.8-flash，线上）
 
-用 Bailian DashScope compatible-mode 的 `kimi-k3` 跑了一次完整链路（Key 只放本地 `.env.local`）：
+线上站点通过 Netlify Background Function 调用真实模型（Key 只存在服务端环境变量），浏览器侧轮询 Blobs 进度。
 
 | 指标 | 结果 |
 | --- | --- |
-| 生成耗时 | 213s（推理模型；已自动加 `enable_thinking:false` 关闭思维链、推送心跳日志、可随时取消） |
-| 输出 | 3 文件 / 29.8 KB：`index.html` 117 行、`styles.css` 410 行、`app.js` 511 行 |
-| 结构自检 | HTML 结构 / 样式脚本挂载 / 经典脚本 / `localStorage` 全部通过 |
-| 渲染验证 | 0 运行时错误、0 横向溢出（桌面+390px）、文本对比度 14.7:1、21 个可交互元素 |
-| 截图 | `shots/real-kimi-app.png` |
+| 首轮生成（会议室预约，任意需求） | **77.9s**（prompt 未预设、模型自行设计领域；生成中持续推送心跳日志） |
+| 二轮修改（改标题 + 加冲突校验） | **70.8s**，标题生效、领域逻辑保持 |
+| 输出 | 3 文件 / 约 14 KB：`index.html` 2.0KB、`styles.css` 4.8KB、`app.js` 7.4KB |
+| 领域正确性 | 生成「会议室 + 时间段 + 冲突校验」应用，代码含 `overlap/conflict` 校验逻辑（非内置配方） |
+| 备选模型 | 设置面板可切换 `qwen3.8-max-0902`（更强，约 2 分钟）/ `qwen3.8-flash`（默认，约 1–1.5 分钟） |
+| 降级 | 模型不可用（Key 失效/限流）时自动切到内置生成器并在对话中提示，保证演示不中断 |
+| 截图 | `shots/real-agent-booking.png` |
 
-复跑：填好 `.env.local` 后，`node scripts/validate-real-app.mjs` 可校验 `shots/real-run.ndjson` 里最后一次真实生成结果。
+复跑：`BASE_URL=https://vibeforge-interview-demo.netlify.app node scripts/verify-real-agent-online.mjs`
+（或 `pnpm test:real`），会校验首轮/二轮均真实完成、非内置配方、含冲突校验。
 
 ## 技术栈与取舍
 
 - **Next.js 16 App Router + TypeScript + Tailwind v4**：一个仓库同时容纳 UI 与生成接口，Vercel 一键部署；
 - **服务端流式生成**（`POST /api/generate`，NDJSON）：模型 Key 不进浏览器代码；逐帧推送让生成过程可感知；
-- **无服务端数据库**：全部数据存浏览器 IndexedDB（Dexie）。避免登录与后端依赖，让「持久化」成为产品能力而非账号能力；
+- **本地优先 + 轻量服务端**：项目/版本/会话存浏览器 IndexedDB（Dexie）；账号与会话存 Netlify Blobs（PBKDF2 哈希），不引入数据库；
 - **单文件内联预览**：生成的应用不是部署到独立域名，而是把 3 个文件内联进 `iframe srcdoc`；配合注入的运行时桥实现控制台捕获、错误捕获和存储降级；
 - **分享 = URL 编码**：gzip + base64url 压缩完整项目进 URL hash（比旧版 lz-string 小 ~33%，兼容旧链接），别人打开即可运行，零后端；
 - **真实模型 = 结构化 JSON**：要求模型只输出一个 `{plan, files}` JSON 对象；对推理模型做参数降级重试（temperature/response_format/max_tokens 被拒时自动退让），并推送心跳日志避免长任务看起来卡死；
@@ -183,7 +186,8 @@ pnpm --package=netlify-cli@latest dlx netlify deploy --dir=out --functions=.netl
 | --- | --- |
 | `OPENAI_API_KEY` | 服务端模型 Key（必填，模型才可用） |
 | `OPENAI_BASE_URL` | 兼容端点，如 `https://dashscope.aliyuncs.com/compatible-mode/v1` |
-| `OPENAI_MODEL` | 模型名，如 `kimi-k3` |
+| `OPENAI_MODEL` | 默认模型，如 `qwen3.8-flash` |
+| `OPENAI_ALLOWED_MODELS` | 允许前端切换的模型（逗号分隔），如 `qwen3.8-flash,qwen3.8-max-0902` |
 
 - 若站点被 Netlify 的 Team protection 拦截（HTTP 401），在站点设置里关闭 SSO 保护即可。
 
@@ -234,7 +238,7 @@ recipe 全量 14/14 PASS ✅、主流程 E2E 11/11 PASS ✅（含取消/重试�
 
 - **Mock 模式不是真的 LLM**：任意 prompt 会路由到最接近的 recipe 或通用合成器，语义理解有上限；
   真实模型模式（BYOK）走同一事件协议，质量由所选模型决定。
-- **推理模型较慢**：如百炼 kimi-k3 全量生成需要 1–3 分钟（会持续推送心跳日志，可随时取消）；
+- **真实模型较慢**：百炼 qwen3.8-flash 约 1–1.5 分钟、qwen3.8-max-0902 约 2 分钟（会持续推送心跳日志，可随时取消）；
   Mock 模式是秒级，适合评委直接体验。
 - **Mock 模式的多轮迭代是「整体重建」**，不是精准 diff 修改；真实模型模式下会把现有文件作为上下文做完整重写。
 - 预览 iframe 使用 `allow-same-origin allow-scripts` 以便生成应用使用 `localStorage`；生成代码来自受信任的生成器，若接入真实模型建议改为独立域名沙箱。

@@ -69,10 +69,25 @@ export default async (req) => {
       { role: "user", content: buildUserMessage(body) },
     ];
 
-    const raw = await callModel(messages, async (chars) => {
-      push({ type: "log", text: `真实模型生成中… 已输出 ${chars.toLocaleString()} 字符` });
-      await flush();
-    });
+    // Model selection: the client may ask for one of the allowed models;
+    // anything else falls back to the server default (OPENAI_MODEL).
+    const allowed = (process.env.OPENAI_ALLOWED_MODELS || process.env.OPENAI_MODEL || "qwen3.8-max-0902")
+      .split(",")
+      .map((m) => m.trim())
+      .filter(Boolean);
+    const requested = typeof body.provider?.model === "string" ? body.provider.model : "";
+    const model = allowed.includes(requested) ? requested : process.env.OPENAI_MODEL || allowed[0];
+    push({ type: "log", text: `使用模型：${model}` });
+    await flush();
+
+    const raw = await callModel(
+      messages,
+      async (chars) => {
+        push({ type: "log", text: `真实模型生成中… 已输出 ${chars.toLocaleString()} 字符` });
+        await flush();
+      },
+      { model },
+    );
 
     push({ type: "step", id: "understand", label: "理解需求", status: "done" });
     push({ type: "log", text: `模型返回 ${raw.length.toLocaleString()} 字符，开始解析结构化输出` });
